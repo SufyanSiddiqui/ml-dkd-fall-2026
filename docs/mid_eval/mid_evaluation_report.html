@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.11" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Literature review and exploratory data analysis" />
+  <title>Mid Evaluation Report</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Mid Evaluation Report</h1>
+<p class="author">Literature review and exploratory data analysis</p>
+<p class="date">October 2026</p>
+</header>
+<div class="center">
+<table>
+<tbody>
+<tr>
+<td style="text-align: left;">Paper</td>
+<td style="text-align: left;">Decoupled Knowledge Distillation</td>
+</tr>
+<tr>
+<td style="text-align: left;">Authors</td>
+<td style="text-align: left;">Borui Zhao, Quan Cui, Renjie Song, Yiyu
+Qiu, and Jiajun Liang</td>
+</tr>
+<tr>
+<td style="text-align: left;">Venue</td>
+<td style="text-align: left;">CVPR 2022, pp. 11953–11962</td>
+</tr>
+<tr>
+<td style="text-align: left;">Dataset</td>
+<td style="text-align: left;">CIFAR-100, original release</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>This report covers the literature review and the exploratory data
+analysis for the mid evaluation. No model has been trained. Numbers in
+Section <a href="#sec:lit" data-reference-type="ref"
+data-reference="sec:lit">1</a> are the authors’ published results.
+Numbers in Section <a href="#sec:eda" data-reference-type="ref"
+data-reference="sec:eda">2</a> were computed from the CIFAR-100 files in
+this project.</p>
+<h1 id="sec:lit">Literature review</h1>
+<h2 id="the-problem">The problem</h2>
+<p>A large convolutional network is usually more accurate than a small
+one, and it is also more expensive to store and to run. Buciluă,
+Caruana, and Niculescu-Mizil framed that tradeoff in 2006 as model
+compression: train an expressive model, then train a smaller model to
+imitate it, so the small model can be deployed where the large one does
+not fit [13]. Deep residual networks made the gap concrete. He et
+al. showed that very deep residual nets set the accuracy standard on
+image classification, and they also made it obvious that the winning
+model is not the model one wants on a phone or under a tight latency
+budget [14].</p>
+<p>Hinton, Vinyals, and Dean turned the compression idea into the
+training recipe later papers call knowledge distillation [2]. A teacher
+network is trained in the usual way. A student, usually smaller, is
+trained with two signals at once: the hard class label, and the
+teacher’s soft probability vector. The soft vector is the part they
+called dark knowledge. A picture of a truck should not only be labeled
+“truck.” The teacher may also put a little mass on “car” and almost none
+on “apple,” and that ranking is useful. They control it with a
+temperature
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+inside the softmax. At
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T = 1</annotation></semantics></math>
+the distribution is peaked. At
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T &gt; 1</annotation></semantics></math>
+the small probabilities on the wrong classes become visible, and the
+student is asked to match them with a KL divergence.</p>
+<p>The extra cost is paid at training time. At inference the teacher is
+discarded and the student runs alone. If the student is only a few
+points behind the teacher, most of the accuracy has been kept at a
+fraction of the compute. That is the setting of this project: CIFAR-100
+classification, a
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+teacher, a
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+student, and a loss that moves the student’s accuracy toward the
+teacher’s without adding anything to the forward pass at test time.</p>
+<h2 id="logit-distillation-and-feature-distillation">Logit distillation
+and feature distillation</h2>
+<p>After Hinton et al., the literature split into two families. The DKD
+paper states this split directly [1].</p>
+<p>Logit distillation stays on the teacher’s output vector. The student
+never sees internal activations. Later logit methods mostly changed the
+training scheme around that same KL term, rather than rewriting it. Deep
+mutual learning trains two networks together so each one is the other’s
+teacher [9]. Teacher-assistant distillation inserts a mid-sized network
+when the teacher is much larger than the student, on the argument that a
+large capacity gap makes the soft labels hard to copy [10]. Cho and
+Hariharan studied the related failure mode that a bigger teacher is not
+always a better teacher, and they tried early-stopped teachers as a fix
+[11]. These papers keep the classical KD loss. They change who produces
+the soft labels, or when.</p>
+<p>Feature distillation matches intermediate maps instead of the output
+vector. FitNets regress a student’s hidden layer onto a teacher’s hint
+layer, with a small regressor in between because the shapes differ [3].
+Attention transfer matches spatial attention maps rather than the raw
+features [4]. A later line matches relations instead of coordinates:
+relational knowledge distillation compares distances and angles between
+samples [5], and contrastive representation distillation pulls a
+student’s representation toward the teacher’s representation of the same
+image and away from other images [6]. Overhaul of feature distillation
+and ReviewKD are stronger feature methods of the same kind. OFD
+redesigns the connector that lines the two feature maps up [7]. ReviewKD
+passes the teacher’s features through a review mechanism across stages
+[8]. On CIFAR-100 these methods beat classical KD. They also cost more
+while training, because the student has to materialize extra maps, and
+several of them add parameters that exist only for the distillation
+loss.</p>
+<p>Zhao et al. start from a complaint about that state of affairs [1].
+Logits sit at a higher semantic level than a mid-network feature, so a
+logit method ought to be competitive. In practice it was not, and most
+new papers had stopped working on it. Their claim is that the weak
+results are not evidence that logits are a poor target. They are
+evidence that the classical KD loss couples two different kinds of
+information and then suppresses the useful one on the samples where the
+teacher is most sure.</p>
+<h2 id="what-dkd-changes">What DKD changes</h2>
+<p>Take one training image whose true class is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>,
+and write the teacher’s softmax as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mi>T</mi></msup><annotation encoding="application/x-tex">p^{T}</annotation></semantics></math>.
+Split that vector into two questions.</p>
+<ol>
+<li><p>How much mass is on the true class, versus everything else? Call
+this the binary pair
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>b</mi><mi>T</mi></msup><mo>=</mo><mo stretchy="false" form="prefix">[</mo><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup><mo>,</mo><mspace width="0.278em"></mspace><mn>1</mn><mo>−</mo><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">b^{T} = [p^{T}_{t},\; 1 - p^{T}_{t}]</annotation></semantics></math>.</p></li>
+<li><p>Among the remaining
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">C - 1</annotation></semantics></math>
+classes, how is the leftover mass arranged? Call this
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mover><mi>p</mi><mo accent="true">̂</mo></mover><mi>T</mi></msup><annotation encoding="application/x-tex">\hat{p}^{T}</annotation></semantics></math>.</p></li>
+</ol>
+<p>The classical KD loss is one KL between the full softmaxes. Zhao et
+al. expand that KL and show it is exactly
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="script">ℒ</mi><mrow><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow></msub><mo>=</mo><mrow><mi mathvariant="normal">T</mi><mi mathvariant="normal">C</mi><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">N</mi><mi mathvariant="normal">C</mi><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+\mathcal{L}_{\mathrm{KD}} = \mathrm{TCKD} + (1 - p^{T}_{t})\,\mathrm{NCKD}.
+\label{eq:kd}
+\end{equation}</annotation></semantics></math> TCKD is the KL on the
+binary pair. NCKD is the KL on the non-target distribution. The familiar
+loss was already those two terms, with the second term multiplied by how
+much probability the teacher did not put on the true class [1].</p>
+<p>They then run the two terms separately on CIFAR-100, with
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+as the teacher and
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+as the student, and with every loss weight set to 1. The student trained
+with labels alone reaches 72.50% top-1. Classical KD, both terms,
+reaches 73.63%
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mn>1.13</mn></mrow><annotation encoding="application/x-tex">+1.13</annotation></semantics></math>).
+TCKD alone falls to 68.63%
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>3.87</mn></mrow><annotation encoding="application/x-tex">-3.87</annotation></semantics></math>).
+NCKD alone reaches 74.26%
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mn>1.76</mn></mrow><annotation encoding="application/x-tex">+1.76</annotation></semantics></math>),
+which is better than classical KD [1, Table 1]. The dark knowledge
+Hinton described lives in the non-target classes, and the target term by
+itself can hurt.</p>
+<p>That split also explains the coupling. If the teacher is very
+confident,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup><annotation encoding="application/x-tex">p^{T}_{t}</annotation></semantics></math>
+is near 1 and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">1 - p^{T}_{t}</annotation></semantics></math>
+is near 0, so NCKD is almost switched off. Those are the samples where
+the teacher’s ranking of the wrong classes is most trustworthy, and they
+are the samples the classical loss downweights. A second coupling is
+that TCKD and NCKD share one implicit weight, so the two terms cannot be
+turned separately.</p>
+<p>Decoupled knowledge distillation replaces the factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msubsup><mi>p</mi><mi>t</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">1 - p^{T}_{t}</annotation></semantics></math>
+with a constant
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>,
+and gives TCKD its own constant
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="script">ℒ</mi><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow></msub><mo>=</mo><mi>α</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">T</mi><mi mathvariant="normal">C</mi><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow><mo>+</mo><mi>β</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">N</mi><mi mathvariant="normal">C</mi><mi mathvariant="normal">K</mi><mi mathvariant="normal">D</mi></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+\mathcal{L}_{\mathrm{DKD}} = \alpha\,\mathrm{TCKD} + \beta\,\mathrm{NCKD}.
+\label{eq:dkd}
+\end{equation}</annotation></semantics></math> The student architecture
+does not change. At inference there is no teacher and no extra head. On
+the same
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>→</mo><annotation encoding="application/x-tex">\rightarrow</annotation></semantics></math>
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+pair, fixing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha = 1</annotation></semantics></math>
+and replacing the coupled weight by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta = 1</annotation></semantics></math>
+moves accuracy from 73.63% to 74.79%. Raising
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+to 8 reaches 76.32%. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">\beta = 8</annotation></semantics></math>,
+sweeping
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+peaks at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha = 1</annotation></semantics></math>
+(76.32%) and drops if the target term is removed (75.30% at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\alpha = 0</annotation></semantics></math>)
+or weighted too heavily (75.42% at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">\alpha = 4</annotation></semantics></math>)
+[1]. The paper’s main CIFAR-100 table, averaged over five trials, lists
+the same pair as teacher 79.42%, label-only student 72.50%, classical KD
+73.33%, and DKD 76.32% [1, Table 6]. The 73.33 and the 73.63 above are
+both reported by the authors: Table 1 uses unit weights on each term,
+and Table 6 is the standard KD comparison.</p>
+<p>Two limits bound what this project will claim. Logits do not tell a
+detector where an object is. On MS-COCO the authors combine DKD with
+ReviewKD rather than using DKD alone [1]. This project does not
+reproduce ImageNet or COCO. The CIFAR-100 classification result is the
+result set up for reproduction.</p>
+<p>The training recipe, once training starts, is the authors’
+configuration for this pair together with the library defaults for the
+DKD loss. SGD, 240 epochs, batch size 64, learning rate 0.05, momentum
+0.9, weight decay
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>4</mn></mrow></msup></mrow><annotation encoding="application/x-tex">5 \times 10^{-4}</annotation></semantics></math>,
+and learning-rate drops by a factor of 0.1 at epochs 150, 180, and 210.
+The loss uses cross-entropy weight 1,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha = 1</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">\beta = 8</annotation></semantics></math>,
+temperature 4, and a 20-epoch warmup on the distillation term. Those
+values are the ones in
+<code>configs/cifar100/dkd/res32x4_res8x4.yaml</code> and in
+<code>CFG.DKD</code> in the reference repository, and they are the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>α</mi><mo>,</mo><mi>β</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\alpha, \beta)</annotation></semantics></math>
+pair the paper reports as best for this student. The official repository
+is a reference for those numbers and for the pretrained teacher. The
+loss and the data loader in this project are written locally. Running
+the authors’ training script and submitting the log is not the
+reproduction.</p>
+<h2 id="what-this-project-reproduces">What this project reproduces</h2>
+<p>One teacher–student pair on CIFAR-100:
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+into
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4.
+The reproduction comparison is top-1 accuracy against the paper’s number
+for that pair, and against a classical-KD student trained on the same
+schedule. The additional experiment, which is outside this mid
+evaluation, is the ablation that separates the two terms: TCKD only,
+NCKD only, DKD, and vanilla KD, on the same pair and the same schedule.
+Deployment, later, is the trained student behind a small web app. None
+of that has been run. This report stops at the paper and the data.</p>
+<h1 id="sec:eda">Exploratory data analysis</h1>
+<h2 id="what-was-loaded-and-how-one-image-is-stored">What was loaded,
+and how one image is stored</h2>
+<p>CIFAR-100 is the dataset released with Krizhevsky’s tiny-images
+report [12]. This project uses the original Python version, not a subset
+and not a folder of JPEG files. The archive on disk is
+<code>data/cifar-100-python.tar.gz</code>. Its MD5 is
+<code>eb9058c3a382ffc7106e4002c42a8d85</code>, the checksum published
+for the official file. After extraction, the loader reads three files:
+<code>train</code> (50<span>,</span>000 images), <code>test</code>
+(10<span>,</span>000 images), and <code>meta</code> (the 100 fine names
+and the 20 superclass names). There is no validation file.</p>
+<p>Each image is one row of 3<span>,</span>072 unsigned bytes, because
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn><mo>=</mo><mn>3072</mn></mrow><annotation encoding="application/x-tex">32 \times 32 \times 3 = 3072</annotation></semantics></math>.
+The row is not stored dot by dot. The first 1<span>,</span>024 bytes are
+the red plane, in row-major order; the next 1<span>,</span>024 are
+green; the last 1<span>,</span>024 are blue. The class id and the
+filename sit in parallel lists, not inside those 3<span>,</span>072
+bytes. The project loader reshapes a row with
+<code>reshape(3, 32, 32)</code> and then
+<code>transpose(1, 2, 0)</code>, which yields a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">32 \times 32 \times 3</annotation></semantics></math>
+RGB image. The same read is implemented in
+<code>src/data/cifar100.py</code>. It does not call torchvision and it
+does not call the authors’ repository. The notebooks
+<code>notebooks/00_eda_cifar100_full.ipynb</code> and
+<code>notebooks/01_cifar100_pipeline.ipynb</code> are the exploratory
+analysis and the preprocessing pipeline.</p>
+<h2
+id="counts-balance-and-the-decision-not-to-hold-out-a-validation-set">Counts,
+balance, and the decision not to hold out a validation set</h2>
+<p>Table <a href="#tab:stats" data-reference-type="ref"
+data-reference="tab:stats">1</a> is computed from the extracted files.
+Every fine class has 500 training images and 100 test images. Every
+superclass has 2<span>,</span>500 training images, which is five fine
+classes. The minimum and the maximum are the same number, so there is no
+majority class and no empty class. Figure <a href="#fig:balance"
+data-reference-type="ref" data-reference="fig:balance">1</a> is the
+per-class training histogram. Figure <a href="#fig:super"
+data-reference-type="ref" data-reference="fig:super">2</a> is the
+superclass histogram. A fine class belongs to exactly one superclass.
+The classifier will predict the 100 fine labels. The superclass is how
+related mistakes can be described later: confusing a bicycle with a
+motorcycle is a different error from confusing a bicycle with an
+apple.</p>
+<p>A standard pipeline checklist would hold out 10–20% of the training
+images for validation. This project does not. The paper trains on the
+full official training set and reports accuracy on the official test
+set. Holding out 5<span>,</span>000 images would train the student on
+45<span>,</span>000 images, and the result would no longer be comparable
+to the published number. The hyperparameters for this pair are already
+fixed by the paper.</p>
+<table id="tab:stats">
+<caption>CIFAR-100 as loaded. Counts are exact, not estimates.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Training images</td>
+<td style="text-align: right;">50<span>,</span>000</td>
+</tr>
+<tr>
+<td style="text-align: left;">Validation images</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">Test images</td>
+<td style="text-align: right;">10<span>,</span>000</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fine classes</td>
+<td style="text-align: right;">100</td>
+</tr>
+<tr>
+<td style="text-align: left;">Superclasses</td>
+<td style="text-align: right;">20</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fine classes per superclass</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td style="text-align: left;">Image shape</td>
+<td
+style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">32 \times 32 \times 3</annotation></semantics></math>,
+uint8</td>
+</tr>
+<tr>
+<td style="text-align: left;">Pixel range</td>
+<td style="text-align: right;">0 to 255</td>
+</tr>
+<tr>
+<td style="text-align: left;">Training images per fine class</td>
+<td style="text-align: right;">500</td>
+</tr>
+<tr>
+<td style="text-align: left;">Test images per fine class</td>
+<td style="text-align: right;">100</td>
+</tr>
+<tr>
+<td style="text-align: left;">Training images per superclass</td>
+<td style="text-align: right;">2<span>,</span>500</td>
+</tr>
+</tbody>
+</table>
+<figure id="fig:balance" data-latex-placement="ht">
+<img src="figures/class_balance.png" style="width:92.0%" />
+<figcaption>Training images per fine class. Every bar is
+500.</figcaption>
+</figure>
+<figure id="fig:super" data-latex-placement="ht">
+<img src="figures/superclass_counts.png" style="width:78.0%" />
+<figcaption>Training images per superclass. Every bar is
+2<span>,</span>500.</figcaption>
+</figure>
+<h2 id="what-the-images-look-like">What the images look like</h2>
+<p>Figure <a href="#fig:raw" data-reference-type="ref"
+data-reference="fig:raw">3</a> shows one raw training image from five
+fine classes in different superclasses: apple, beaver, motorcycle, oak
+tree, and rocket. At
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">32 \times 32</annotation></semantics></math>
+the object is recognizable and most of the texture is gone. Figure <a
+href="#fig:veh" data-reference-type="ref" data-reference="fig:veh">4</a>
+shows the five fine classes inside <code>vehicles_1</code>: bicycle,
+bus, motorcycle, pickup truck, and train. They share a coarse label and
+they are still five different categories. DKD, like the paper’s
+CIFAR-100 setup, classifies the 100 fine labels. The coarse labels are
+context for the errors we expect, not a second training target.</p>
+<p>The resolution is a property of the 2009 release.
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+and
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+take
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">32 \times 32</annotation></semantics></math>
+inputs, so the images are left at that size.</p>
+<figure id="fig:raw" data-latex-placement="ht">
+<img src="figures/raw_examples.png" style="width:92.0%" />
+<figcaption>Raw training images from five superclasses. No crop, no
+flip, no normalization.</figcaption>
+</figure>
+<figure id="fig:veh" data-latex-placement="ht">
+<img src="figures/superclass_vehicles.png" style="width:92.0%" />
+<figcaption>The five fine classes of <code>vehicles_1</code>. Same
+superclass, different labels.</figcaption>
+</figure>
+<h2 id="missing-pixels-extreme-brightness-and-repeated-images">Missing
+pixels, extreme brightness, and repeated images</h2>
+<p>There is no missing-pixel problem. Every image has 3<span>,</span>072
+pixels, the dtype is uint8, and the only values present are the integers
+0 through 255. A scan of both splits found no all-black image, no
+all-white image, no flat-color image, and no image whose red, green, or
+blue channel is entirely zero. Labels are integers in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>99</mn></mrow><annotation encoding="application/x-tex">0,\ldots,99</annotation></semantics></math>
+for the fine task and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>19</mn></mrow><annotation encoding="application/x-tex">0,\ldots,19</annotation></semantics></math>
+for the coarse task, and every id occurs.</p>
+<p>Brightness does vary. The per-image mean on the training set, with
+pixels scaled to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0, 1]</annotation></semantics></math>,
+has a 1st percentile of 0.168, a median of 0.464, and a 99th percentile
+of 0.872 (Figure <a href="#fig:bright" data-reference-type="ref"
+data-reference="fig:bright">5</a>). On the 0–255 scale, the darkest
+training image has mean 7.12 and the brightest has mean 246.56. Two
+training images have mean below 10, and six have mean above 245. Those
+images stay in the set. They are part of the release the paper
+evaluated.</p>
+<figure id="fig:bright" data-latex-placement="ht">
+<img src="figures/brightness.png" style="width:72.0%" />
+<figcaption>Mean brightness of each training image, scaled to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0, 1]</annotation></semantics></math>.</figcaption>
+</figure>
+<p>The same 3<span>,</span>072 bytes sometimes occur more than once.
+Fourteen training rows are repeated, and nine of those repeats carry two
+different fine names. Two test rows are repeated. Ten images occur in
+both the training file and the test file: four pairs share a fine name,
+and six do not. The rows are kept. Removing them would make the test set
+different from the official release the paper evaluated.</p>
+<h2 id="channel-statistics">Channel statistics</h2>
+<p>Training will subtract a per-channel mean and divide by a per-channel
+standard deviation, after scaling pixels from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>255</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0, 255]</annotation></semantics></math>
+to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0, 1]</annotation></semantics></math>.
+Recomputing those moments on the full training set gives means
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.5071</mn><annotation encoding="application/x-tex">0.5071</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.4865</mn><annotation encoding="application/x-tex">0.4865</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.4409</mn><annotation encoding="application/x-tex">0.4409</annotation></semantics></math>
+and standard deviations
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2673</mn><annotation encoding="application/x-tex">0.2673</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2564</mn><annotation encoding="application/x-tex">0.2564</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2762</mn><annotation encoding="application/x-tex">0.2762</annotation></semantics></math>.
+The recipe constants are
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.5071</mn><annotation encoding="application/x-tex">0.5071</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.4867</mn><annotation encoding="application/x-tex">0.4867</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.4408</mn><annotation encoding="application/x-tex">0.4408</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2675</mn><annotation encoding="application/x-tex">0.2675</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2565</mn><annotation encoding="application/x-tex">0.2565</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.2761</mn><annotation encoding="application/x-tex">0.2761</annotation></semantics></math>.
+They agree to three decimals, so training will keep the recipe values.
+The mean of every training pixel across all three channels is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.4782</mn><annotation encoding="application/x-tex">0.4782</annotation></semantics></math>.</p>
+<p>Figure <a href="#fig:hist" data-reference-type="ref"
+data-reference="fig:hist">6</a> is the histogram of raw pixel values in
+each channel. The distributions cover the full 0–255 range. They are not
+piled up at 0 or at 255, so the set is not a collection of clipped black
+or white frames. The per-image brightness histogram cannot show that,
+because averaging an image hides a single channel.</p>
+<figure id="fig:hist" data-latex-placement="ht">
+<img src="figures/channel_histograms.png" />
+<figcaption>Pixel-value histograms of the training set, one panel per
+channel.</figcaption>
+</figure>
+<h2 id="do-the-classes-separate-in-raw-pixel-space">Do the classes
+separate in raw pixel space?</h2>
+<p>Each training image can also be treated as one list of
+3<span>,</span>072 numbers, with no network and no learned features.
+Principal component analysis on a fixed sample of 4<span>,</span>000
+training images, after subtracting the average value at each pixel
+position, finds the directions that keep the most of that variation. The
+first axis keeps 32.5% and the second keeps 9.4%. The first 10 axes keep
+68.4%, the first 50 keep 85.8%, and 85 axes are required to reach 90%.
+Two axes are therefore a partial view, which is why the plot is read for
+overlap rather than treated as a complete map of the data.</p>
+<p>Figure <a href="#fig:pca" data-reference-type="ref"
+data-reference="fig:pca">7</a> colors those 4<span>,</span>000 images by
+superclass. Figure <a href="#fig:pcav" data-reference-type="ref"
+data-reference="fig:pcav">8</a> places the five fine classes of
+<code>vehicles_1</code> on the same two axes. The groups overlap in both
+plots. A single straight cut through these raw pixels does not separate
+the classes. A perceptron, whose decision boundary is one straight cut,
+is the wrong classifier for this view of the data.</p>
+<p>The networks in this project are
+ResNet32<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4
+and
+ResNet8<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>4.
+They are convolutional networks, and their decision is not that straight
+cut. The plot describes the pixels. It does not choose the architecture:
+that pair is the one in the paper. The 4<span>,</span>000 images are
+only the drawing. The counts in Table <a href="#tab:stats"
+data-reference-type="ref" data-reference="tab:stats">1</a> use all
+60<span>,</span>000.</p>
+<figure id="fig:pca" data-latex-placement="ht">
+<img src="figures/pca_superclasses.png" style="width:92.0%" />
+<figcaption>First two principal components of raw pixels. Color is the
+superclass. The sample is 4<span>,</span>000 training
+images.</figcaption>
+</figure>
+<figure id="fig:pcav" data-latex-placement="ht">
+<img src="figures/pca_vehicles.png" style="width:72.0%" />
+<figcaption>The five <code>vehicles_1</code> classes on the same two
+axes. The groups overlap.</figcaption>
+</figure>
+<h2 id="the-metric-that-follows-from-this-distribution">The metric that
+follows from this distribution</h2>
+<p>The paper reports CIFAR-100 top-1 accuracy, averaged over five trials
+in the main table [1]. That is the metric this project will use for the
+reproduction and for the later ablation.</p>
+<p>It matches the label distribution. Every fine class has the same
+number of training images and the same number of test images, so
+accuracy is not carried by one large class, and a macro-average would
+rank models in the same order. The decision the paper makes, and the
+decision the later demo will make, is one label out of 100. Top-5
+accuracy is a usual extra number on ImageNet, where 1<span>,</span>000
+classes make the second guess informative. The DKD CIFAR tables do not
+use it, and this project will not add it as a second headline number. If
+a later error analysis is useful, the superclass file can count how
+often the predicted fine class sits in the correct superclass. That is a
+diagnostic.</p>
+<h2 id="preprocessing-the-training-loop-will-see">Preprocessing the
+training loop will see</h2>
+<p>Labels stay integers from 0 to 99. Cross-entropy and the DKD loss
+both index the logit vector with that integer. A one-hot vector of
+length 100 is not built.</p>
+<p>The image transforms follow the CIFAR recipe used with this
+paper.</p>
+<ul>
+<li><p>Training: pad by 4 pixels with zeros, crop a random
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">32 \times 32</annotation></semantics></math>
+window, flip left–right with probability
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">1/2</annotation></semantics></math>,
+divide by 255, then subtract the recipe mean and divide by the recipe
+standard deviation.</p></li>
+<li><p>Evaluation: divide by 255 and normalize. No crop and no
+flip.</p></li>
+</ul>
+<p>Both views are <code>float32</code> arrays in channel-first order,
+shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">3 \times 32 \times 32</annotation></semantics></math>.
+A training batch is 64 of those arrays, shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>64</mn><mo>×</mo><mn>3</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">64 \times 3 \times 32 \times 32</annotation></semantics></math>,
+with a label vector of shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>64</mn><annotation encoding="application/x-tex">64</annotation></semantics></math>.
+The training indices are shuffled at the start of each epoch. The test
+indices stay in stored order. Figure <a href="#fig:prep"
+data-reference-type="ref" data-reference="fig:prep">9</a> applies the
+training transform three times to one image and the evaluation transform
+once. The figure undoes the normalization so the shift and the mirror
+are visible. A crop that touches the padded border shows a black edge,
+which is the zero fill in the recipe.</p>
+<p>The pipeline stops at these two views. No further augmentation is
+applied.</p>
+<p>The functions <code>preprocess_train</code> and
+<code>preprocess_eval</code> in <code>src/data/cifar100.py</code> are
+this project’s implementation of the two views. They were checked
+against the published recipe. They were not imported from the authors’
+code.</p>
+<figure id="fig:prep" data-latex-placement="ht">
+<img src="figures/preprocess_views.png" />
+<figcaption>One training image, three training views, and the evaluation
+view. Normalization is undone so the crop and the flip are
+visible.</figcaption>
+</figure>
+<h1 class="unnumbered" id="closing">Closing</h1>
+<p>The literature case for the project is Equation (1): classical KD
+already contains a target term and a non-target term, and the non-target
+term is suppressed when the teacher is confident. Equation (2) gives
+each term its own weight. On the pair this project will train, the
+authors’ best reported setting is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha = 1</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">\beta = 8</annotation></semantics></math>,
+with top-1 accuracy 76.32%.</p>
+<p>The data case is that the files on disk are the original CIFAR-100
+release: 50<span>,</span>000 training images, 10<span>,</span>000 test
+images, 100 balanced fine classes,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">32 \times 32 \times 3</annotation></semantics></math>
+pixels, and no validation split. The measured channel moments match the
+recipe constants to three decimals. On a sample of raw pixels, the
+classes overlap, so a straight cut does not separate them. A few exact
+copies sit in both files, some under two different names, and they are
+retained so the test set stays the official one. Preprocessing is the
+paper’s pad, crop, horizontal flip, and normalization, with integer
+labels and batches of 64. Training has not started.</p>
+<div class="thebibliography">
+<p><span>99</span></p>
+<p>B. Zhao, Q. Cui, R. Song, Y. Qiu, and J. Liang, “Decoupled knowledge
+distillation,” in <em>Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. (CVPR)</em>, 2022, pp. 11953–11962.</p>
+<p>G. Hinton, O. Vinyals, and J. Dean, “Distilling the knowledge in a
+neural network,” arXiv:1503.02531, 2015.</p>
+<p>A. Romero, N. Ballas, S. E. Kahou, A. Chassang, C. Gatta, and
+Y. Bengio, “FitNets: Hints for thin deep nets,” in
+<em>Proc. Int. Conf. Learn. Represent. (ICLR)</em>, 2015.</p>
+<p>S. Zagoruyko and N. Komodakis, “Paying more attention to attention:
+Improving the performance of convolutional neural networks via attention
+transfer,” in <em>Proc. Int. Conf. Learn. Represent. (ICLR)</em>,
+2017.</p>
+<p>W. Park, D. Kim, Y. Lu, and M. Cho, “Relational knowledge
+distillation,” in <em>Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. (CVPR)</em>, 2019.</p>
+<p>Y. Tian, D. Krishnan, and P. Isola, “Contrastive representation
+distillation,” in <em>Proc. Int. Conf. Learn. Represent. (ICLR)</em>,
+2020.</p>
+<p>B. Heo, J. Kim, S. Yun, H. Park, N. Kwak, and J. Y. Choi, “A
+comprehensive overhaul of feature distillation,” in <em>Proc. IEEE/CVF
+Int. Conf. Comput. Vis. (ICCV)</em>, 2019.</p>
+<p>P. Chen, S. Liu, H. Zhao, and J. Jia, “Distilling knowledge via
+knowledge review,” in <em>Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. (CVPR)</em>, 2021.</p>
+<p>Y. Zhang, T. Xiang, T. M. Hospedales, and H. Lu, “Deep mutual
+learning,” in <em>Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. (CVPR)</em>, 2018.</p>
+<p>S. I. Mirzadeh, M. Farajtabar, A. Li, N. Levine, A. Matsukawa, and
+H. Ghasemzadeh, “Improved knowledge distillation via teacher assistant,”
+in <em>Proc. AAAI Conf. Artif. Intell.</em>, 2020.</p>
+<p>J. H. Cho and B. Hariharan, “On the efficacy of knowledge
+distillation,” in <em>Proc. IEEE/CVF
+Int. Conf. Comput. Vis. (ICCV)</em>, 2019.</p>
+<p>A. Krizhevsky, “Learning multiple layers of features from tiny
+images,” Tech. Rep., University of Toronto, 2009.</p>
+<p>C. Buciluă, R. Caruana, and A. Niculescu-Mizil, “Model compression,”
+in <em>Proc. 12th ACM SIGKDD Int. Conf. Knowl. Discovery Data Mining
+(KDD)</em>, 2006.</p>
+<p>K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for
+image recognition,” in <em>Proc. IEEE Conf. Comput. Vis. Pattern
+Recognit. (CVPR)</em>, 2016.</p>
+</div>
+</body>
+</html>

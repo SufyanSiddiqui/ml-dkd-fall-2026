@@ -1,0 +1,187 @@
+{
+  "n_train": 50000,
+  "n_test": 10000,
+  "n_fine": 100,
+  "n_coarse": 20,
+  "image_shape": [
+    32,
+    32,
+    3
+  ],
+  "dtype": "uint8",
+  "pixel_min": 0,
+  "pixel_max": 255,
+  "train_per_class_min": 500,
+  "train_per_class_max": 500,
+  "test_per_class_min": 100,
+  "test_per_class_max": 100,
+  "train_balanced": true,
+  "test_balanced": true,
+  "train_per_superclass_min": 2500,
+  "train_per_superclass_max": 2500,
+  "computed_mean": [
+    0.5071,
+    0.4865,
+    0.4409
+  ],
+  "computed_std": [
+    0.2673,
+    0.2564,
+    0.2762
+  ],
+  "recipe_mean": [
+    0.507099986076355,
+    0.48669999837875366,
+    0.4408000111579895
+  ],
+  "recipe_std": [
+    0.26750001311302185,
+    0.2565000057220459,
+    0.2761000096797943
+  ],
+  "brightness_p01": 0.1677,
+  "brightness_p50": 0.464,
+  "brightness_p99": 0.8724,
+  "fine_per_coarse": {
+    "aquatic_mammals": [
+      "otter",
+      "seal",
+      "whale",
+      "beaver",
+      "dolphin"
+    ],
+    "fish": [
+      "aquarium_fish",
+      "shark",
+      "flatfish",
+      "ray",
+      "trout"
+    ],
+    "flowers": [
+      "sunflower",
+      "rose",
+      "tulip",
+      "poppy",
+      "orchid"
+    ],
+    "food_containers": [
+      "cup",
+      "bottle",
+      "plate",
+      "bowl",
+      "can"
+    ],
+    "fruit_and_vegetables": [
+      "apple",
+      "mushroom",
+      "sweet_pepper",
+      "orange",
+      "pear"
+    ],
+    "household_electrical_devices": [
+      "telephone",
+      "keyboard",
+      "television",
+      "clock",
+      "lamp"
+    ],
+    "household_furniture": [
+      "table",
+      "chair",
+      "wardrobe",
+      "couch",
+      "bed"
+    ],
+    "insects": [
+      "cockroach",
+      "butterfly",
+      "bee",
+      "caterpillar",
+      "beetle"
+    ],
+    "large_carnivores": [
+      "wolf",
+      "leopard",
+      "lion",
+      "tiger",
+      "bear"
+    ],
+    "large_man-made_outdoor_things": [
+      "castle",
+      "skyscraper",
+      "road",
+      "bridge",
+      "house"
+    ],
+    "large_natural_outdoor_scenes": [
+      "cloud",
+      "sea",
+      "mountain",
+      "forest",
+      "plain"
+    ],
+    "large_omnivores_and_herbivores": [
+      "cattle",
+      "elephant",
+      "chimpanzee",
+      "camel",
+      "kangaroo"
+    ],
+    "medium_mammals": [
+      "possum",
+      "skunk",
+      "raccoon",
+      "fox",
+      "porcupine"
+    ],
+    "non-insect_invertebrates": [
+      "lobster",
+      "snail",
+      "worm",
+      "crab",
+      "spider"
+    ],
+    "people": [
+      "boy",
+      "woman",
+      "girl",
+      "man",
+      "baby"
+    ],
+    "reptiles": [
+      "dinosaur",
+      "snake",
+      "crocodile",
+      "turtle",
+      "lizard"
+    ],
+    "small_mammals": [
+      "squirrel",
+      "shrew",
+      "rabbit",
+      "hamster",
+      "mouse"
+    ],
+    "trees": [
+      "willow_tree",
+      "pine_tree",
+      "oak_tree",
+      "maple_tree",
+      "palm_tree"
+    ],
+    "vehicles_1": [
+      "train",
+      "bicycle",
+      "motorcycle",
+      "bus",
+      "pickup_truck"
+    ],
+    "vehicles_2": [
+      "streetcar",
+      "tractor",
+      "rocket",
+      "tank",
+      "lawn_mower"
+    ]
+  }
+}

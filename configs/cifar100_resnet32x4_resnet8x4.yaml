@@ -1,0 +1,38 @@
+# CIFAR-100 protocol for the pair we will reproduce.
+# Solver values match configs/cifar100/dkd/res32x4_res8x4.yaml in
+# https://github.com/megvii-research/mdistiller
+# DKD weights match the library defaults in mdistiller/engine/cfg.py
+# and the alpha/beta setting that the paper reports as best for this pair.
+
+dataset: cifar100
+teacher: resnet32x4
+student: resnet8x4
+
+solver:
+  optimizer: SGD
+  epochs: 240
+  batch_size: 64
+  lr: 0.05
+  momentum: 0.9
+  weight_decay: 0.0005
+  lr_decay_stages: [150, 180, 210]
+  lr_decay_rate: 0.1
+
+dkd:
+  ce_weight: 1.0
+  alpha: 1.0
+  beta: 8.0
+  temperature: 4.0
+  warmup_epochs: 20
+
+preprocess:
+  train:
+    - random_crop_32_pad_4
+    - random_horizontal_flip
+    - to_tensor
+    - normalize
+  test:
+    - to_tensor
+    - normalize
+  mean: [0.5071, 0.4867, 0.4408]
+  std: [0.2675, 0.2565, 0.2761]

@@ -154,3 +154,100 @@ def make_splits(data: dict) -> dict:
         "train_balanced": bool(train_fine_counts.min() == train_fine_counts.max()),
         "test_balanced": bool(test_fine_counts.min() == test_fine_counts.max()),
     }
+
+
+def preprocess_pil_eval(pil_image: Image.Image) -> np.ndarray:
+    """Resize/convert an arbitrary PIL image to 32x32 RGB and apply eval normalization.
+
+    Used by the Streamlit inference app so uploaded images go through the exact
+    same normalization as CIFAR-100 evaluation images.
+    """
+    rgb = pil_image.convert("RGB")
+    if rgb.size != (32, 32):
+        rgb = rgb.resize((32, 32), Image.Resampling.BILINEAR)
+    arr = np.asarray(rgb, dtype=np.uint8)
+    return preprocess_eval(arr)
+
+
+class CIFAR100Dataset:
+    """PyTorch-compatible Dataset wrapping our from-scratch CIFAR-100 arrays and transforms."""
+
+    def __init__(
+        self,
+        images: np.ndarray,
+        labels: np.ndarray,
+        train: bool = True,
+        seed: int | None = None,
+    ) -> None:
+        if images.ndim != 4 or images.shape[1:] != (32, 32, 3):
+            raise ValueError(f"Expected images of shape (N, 32, 32, 3), got {images.shape}")
+        if len(images) != len(labels):
+            raise ValueError(f"Mismatched lengths: {len(images)} images vs {len(labels)} labels")
+        self.images = images
+        self.labels = np.asarray(labels, dtype=np.int64)
+        self.train = bool(train)
+        self.rng = np.random.default_rng(seed)
+
+    def __len__(self) -> int:
+        return int(self.images.shape[0])
+
+    def __getitem__(self, index: int) -> tuple["torch.Tensor", int]:
+        import torch
+
+        raw = self.images[index]
+        if self.train:
+            chw = preprocess_train(raw, rng=self.rng)
+        else:
+            chw = preprocess_eval(raw)
+        tensor = torch.from_numpy(np.ascontiguousarray(chw, dtype=np.float32))
+        label = int(self.labels[index])
+        return tensor, label
+
+
+def build_dataloaders(
+    data_dir: Path | str = DEFAULT_DATA_DIR,
+    batch_size: int = 64,
+    eval_batch_size: int = 128,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+    seed: int | None = None,
+) -> tuple["torch.utils.data.DataLoader", "torch.utils.data.DataLoader", dict]:
+    """Build PyTorch train and test DataLoaders from the local CIFAR-100 files."""
+    import torch
+    from torch.utils.data import DataLoader
+
+    raw_data = load_cifar100(data_dir)
+    train_dataset = CIFAR100Dataset(
+        raw_data["train_images"],
+        raw_data["train_fine"],
+        train=True,
+        seed=seed,
+    )
+    test_dataset = CIFAR100Dataset(
+        raw_data["test_images"],
+        raw_data["test_fine"],
+        train=False,
+    )
+
+    generator = None
+    if seed is not None:
+        generator = torch.Generator()
+        generator.manual_seed(seed)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        generator=generator,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=eval_batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
+    return train_loader, test_loader, raw_data
+

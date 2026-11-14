@@ -12,3 +12,4 @@ torchview==0.2.7
 torchviz==0.0.3
 graphviz==0.21
 plotly==7.1.0
+certifi==2026.10.23

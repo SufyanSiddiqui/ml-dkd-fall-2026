@@ -81,6 +81,22 @@ data/cifar-100-python/test
 data/cifar-100-python/meta
 ```
 
+The notebooks run the same download themselves: each one calls
+`ensure_cifar100()` from `scripts/setup_project.py` near the top, which
+downloads and extracts CIFAR-100 the first time and does nothing after that.
+So after a fresh clone you can open any notebook directly, as long as the
+packages from `requirements.txt` are installed.
+
+The download uses the `certifi` certificate bundle when it is installed, and
+the macOS system bundle otherwise. That avoids the
+`CERTIFICATE_VERIFY_FAILED` error that python.org builds of Python give on
+macOS before "Install Certificates.command" has been run.
+
+On Google Colab, `notebooks/03_colab_training_and_logging.ipynb` clones this
+repository from GitHub. The repository is private, so add a GitHub token with
+read access as the Colab secret `GITHUB_TOKEN`, or paste it when the notebook
+asks. Leaving the prompt empty falls back to uploading `dkd_colab_bundle.zip`.
+
 `train` has 50,000 images. `test` has 10,000 images. There is no validation
 file. Each image is 32×32 RGB, stored as one row of 3,072 bytes: the red
 plane, then the green plane, then the blue plane.

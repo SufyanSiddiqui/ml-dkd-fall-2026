@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import ssl
 import subprocess
 import sys
 import tarfile
@@ -76,6 +77,26 @@ def md5(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """Build an SSL context that also works on python.org builds of macOS Python.
+
+    Those builds ship without trusted root certificates until the user runs
+    "Install Certificates.command", so plain urlopen fails with
+    CERTIFICATE_VERIFY_FAILED. Prefer certifi when installed, then the macOS
+    system bundle, then Python's default.
+    """
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        pass
+    context = ssl.create_default_context()
+    if not context.get_ca_certs() and Path("/etc/ssl/cert.pem").exists():
+        context = ssl.create_default_context(cafile="/etc/ssl/cert.pem")
+    return context
+
+
 def download_archive() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if ARCHIVE.exists() and md5(ARCHIVE) == EXPECTED_MD5:
@@ -90,7 +111,7 @@ def download_archive() -> None:
         print(f"Downloading {url}")
         try:
             request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(request, timeout=60) as response, ARCHIVE.open("wb") as out:
+            with urllib.request.urlopen(request, timeout=60, context=_ssl_context()) as response, ARCHIVE.open("wb") as out:
                 total = int(response.headers.get("Content-Length") or 0)
                 read = 0
                 while True:
@@ -131,6 +152,22 @@ def extract_archive() -> None:
     if missing:
         raise SystemExit(f"Extraction finished, but these files are missing: {missing}")
     print("Extracted train, test, and meta.")
+
+
+def ensure_cifar100() -> Path:
+    """Download and extract CIFAR-100 only if it is not already on disk.
+
+    Notebooks call this so a fresh clone works without running setup first.
+    Returns the folder holding train, test, and meta.
+    """
+    needed = [EXTRACTED / "train", EXTRACTED / "test", EXTRACTED / "meta"]
+    if all(path.exists() for path in needed):
+        print(f"CIFAR-100 found: {EXTRACTED}")
+        return EXTRACTED
+    print("CIFAR-100 not found locally. Downloading it once (about 161 MB).")
+    download_archive()
+    extract_archive()
+    return EXTRACTED
 
 
 def main() -> None:

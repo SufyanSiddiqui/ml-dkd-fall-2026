@@ -19,10 +19,19 @@ Companion cell-by-cell reasoning guide: see `NOTEBOOK_GUIDE.md` (keep updating i
 - Implemented `preprocess_train` (4-pixel zero pad -> random `32×32` crop -> `50%` horizontal flip -> normalize -> `CHW`), `preprocess_eval`, and `unnormalize_for_plot` across separate cells; visually verified 5 views of image `0` (`cattle`).
 - Implemented custom `SimpleCIFAR100(Dataset)` and verified `train_loader` (`782` batches of `[64, 3, 32, 32]`) and `test_loader` (`[64, 3, 32, 32]` — note: `test_loader` currently uses `batch_size=BATCH_SIZE` = `64`, which works identically for accuracy).
 
-### Stage 3 (Part 1) — Pretrained Teacher Checkpoint Inspection & `BasicBlock` (Done)
+### Stage 3 — Pretrained Teacher Checkpoint Inspection, ResNet From Scratch & 2D Boundary (Done)
 - Located `checkpoints/cifar_teachers/resnet32x4_vanilla/ckpt_epoch_240.pth`.
 - Loaded and inspected top-level keys (`['epoch', 'model', 'accuracy', 'optimizer']`) and the `172` parameter tensors inside `raw_ckpt['model']` (`conv1`, `bn1`, `layer1..layer3`, `fc`).
 - Implemented and shape-verified `BasicBlock(nn.Module)` in Cell 20 (both identity shortcut `(2, 64, 32, 32) -> (2, 64, 32, 32)` and projection downsample `(2, 64, 32, 32) -> (2, 128, 16, 16)`).
+- Implemented `make_shortcut` + explicit `StudentResNet8x4` (`1,233,540` params) and `TeacherResNet32x4` (`7,433,860` params — `6.03x` larger than Student).
+- Loaded Megvii's 172 pretrained Teacher tensors with `strict=True` (`<All keys matched successfully>`), froze the Teacher (`eval()` + `requires_grad_(False)`), verified `evaluate_model(teacher, test_loader)` (~79.42% test top-1), and plotted the Teacher's 256-D PCA 2D feature space & linear decision boundaries across 4 training classes (`apple`, `cattle`, `bus`, `dolphin`).
+
+### Stage 4 — Classical KD, TCKD, NCKD, DKD & All 5 Experiment Modes (Done)
+- Implemented classical `kd_loss(logits_s, logits_t, T=4.0)` and visualized `T = 1.0` vs. `T = 4.0` softmax ("dark knowledge" emerging on visually related classes).
+- Verified untrained Student baseline `CE` on a 64-image batch (`4.6145` vs. theoretical random guessing $\ln(100) = 4.6052$) alongside `kd_loss = 10.6828`, and plotted side-by-side `CE` one-hot vs. `KD` soft-target bar charts on Image `0` (`crocodile -> lizard, leopard, dinosaur, tank, sea`).
+- Implemented `tckd_per_sample`, `nckd_per_sample` (using conditional probability renormalization via `-1000.0` logit masking before softmax/log_softmax), and `dkd_loss` across separate cells.
+- Numerically & visually proved Equation (1) (`TCKD + (1 - p_t^T)*NCKD == KD = 10.6828`), showing how classical KD crushed `NCKD` to `1.3759` while `TCKD` took `9.3069`.
+- Implemented `compute_student_loss(...)` covering all **5 semester-project modes** (`ce`, `kd`, `tckd_only`, `nckd_only`, `dkd` with fixed published recipe `alpha=1.0, beta=8.0, T=4.0` and 20-epoch linear warmup) and plotted the 5-mode stacked comparison + 20-epoch warmup ramp.
 
 ---
 
@@ -152,21 +161,15 @@ $$
 
 ---
 
-## Remaining Roadmap (Pick Up Here Next Session)
-
-### Stage 3 (Part 2) — Finish CIFAR ResNet From Scratch (~2 cells, ~15 mins)
-1. ~~**Cell A — `BasicBlock(nn.Module)`:**~~ *(Done in Cell 20)*
-2. **Cell B — `CifarResNet(nn.Module)`:** Stem (`3×3 conv1 + bn1`) + 3 stages (`layer1` at `32×32`, `layer2` at `16×16`, `layer3` at `8×8` with widths `[32, 64, 128, 256]`) + `AvgPool2d(8)` + `Linear(256, 100)`. Instantiate both `student = CifarResNet(depth=8)` and `teacher = CifarResNet(depth=32)` from the same class.
-3. **Cell C — Load Teacher Weights & Verify ~79.42% Test Accuracy:** Load `teacher_state` with `strict=True` and run an evaluation pass on `test_loader` to prove our hand-written architecture matches Megvii's checkpoint 100%.
-
-### Stage 4 — Classical KD, TCKD, NCKD & DKD Losses From Scratch (~3 cells, ~25 mins)
-1. **Cell A — Classical `kd_loss` + Temperature `T=4.0`:** Softmax temperature scaling and `KL(p^T || p^S) * T^2`.
-2. **Cell B — `tckd_loss` & `nckd_loss`:** Binary `[p_t, 1 - p_t]` KL vs. masked non-target KL.
-3. **Cell C — Exact Algebraic Identity Proof + Unified `compute_loss(...)`:** Verify on a real batch from our Teacher & Student that `TCKD + (1 - p_t^T) * NCKD == KD` to ~`1e-6`, then wire up `dkd_loss(alpha, beta)` and 20-epoch linear warmup.
+## Remaining Roadmap (Pick Up Here Later Today — Only ~3–4 Cells Left!)
 
 ### Stage 5 — Training Step, LR Schedule & Local Smoke Run (~2 cells, ~20 mins)
-1. **Cell A — Optimizer, Step-Decay LR (`[150, 180, 210]`) & `train_one_epoch` / `evaluate`:** Note strictly where `torch.no_grad()` cuts gradients to the Teacher while `loss.backward()` updates the Student.
-2. **Cell B — 2-Epoch Local Sanity Run (`FAST_DEV_RUN = True`):** Watch loss drop and accuracy climb on `mps`, plus save/resume checkpoint dictionary.
+1. **Cell A — Optimizer, Step-Decay LR (`[150, 180, 210]`) & `train_one_epoch`:**
+   - Build SGD (`lr=0.05, momentum=0.9, weight_decay=5e-4`) and step-decay helper (`0.1x` at epochs `150, 180, 210`).
+   - Write `train_one_epoch(...)` clearly showing `with torch.no_grad(): logits_t = teacher(x)` (cutting gradients to Teacher) vs. `loss.backward(); optimizer.step()` (updating Student only), plus per-batch `ms/batch` timing.
+2. **Cell B — 2-Epoch Local Sanity Run (`FAST_DEV_RUN = True`) + Training Curve Plot + Save/Resume Checkpoint:**
+   - Run 2 quick epochs on `mps`, plot Loss & Accuracy across epochs, and verify saving/resuming `ckpt_last.pth` and `ckpt_best.pth`.
 
 ### Stage 6 — Outer Experiment Loop for the 5 Ablation Modes (~1–2 cells, ~15 mins)
-1. Loop cleanly over the 5 project modes (`ce`, `kd`, `tckd_only`, `nckd_only`, `dkd`) + `ms/batch` latency timing check so the notebook is ready to upload directly to Google Colab GPU with `FAST_DEV_RUN = False`.
+1. **Cell A — `ms/batch` Latency Benchmark Across All 5 Modes:** Prove DKD adds zero extra forward pass over vanilla KD.
+2. **Cell B — Clean `run_experiment(mode)` Outer Loop:** Loop over `["ce", "kd", "tckd_only", "nckd_only", "dkd"]` with fixed `SEED = 42` so the single `.ipynb` file is 100% ready for full 240-epoch Google Colab GPU runs (`FAST_DEV_RUN = False`).

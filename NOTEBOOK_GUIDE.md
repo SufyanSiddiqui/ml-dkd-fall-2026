@@ -94,16 +94,79 @@ This companion document explains **what each cell in `notebooks/05_dkd_from_scra
   - `fc.weight : (100, 256)` $\rightarrow$ 256 features pooled down to $1 \times 1$, mapped to `100` CIFAR-100 class logits.
   - Crucially, **CIFAR ResNet is NOT ImageNet ResNet**: ImageNet ResNet uses a `7×7 stride-2` stem + MaxPool (for \(224 \times 224\) photos) and 4 stages, which would crush a tiny \(32 \times 32\) CIFAR image immediately. CIFAR ResNet uses a gentle `3×3 stride-1` stem (no MaxPool) and 3 stages (\(32 \times 32 \to 16 \times 16 \to 8 \times 8\)) with depth \(6n + 2\) (\(n=1 \implies\) Student `ResNet8×4`; \(n=5 \implies\) Teacher `ResNet32×4`).
 
-### Cell 20 — `BasicBlock(nn.Module)` (Where We Paused Today)
+### Cell 20 — `BasicBlock(nn.Module)`
 - **What it does:** Implements one residual block with two \(3 \times 3\) `Conv2d + BatchNorm2d` layers (`bias=False` on convs because BatchNorm already includes a learnable shift `bias`) and adds the input back before the final ReLU:
   \[
   \text{out} = \text{ReLU}\big(F(x) + \text{shortcut}(x)\big)
   \]
-- **Why the skip connection (`out + residual`):**
-  In plain 32-layer CNNs, gradients multiply through 32 weight matrices during backpropagation and vanish toward zero. Adding `+ x` creates a direct identity highway with derivative \(+1\), allowing deep networks like our 32-layer Teacher to train cleanly.
-- **Why `if self.downsample is not None:`:**
-  Tensor addition `out + residual` requires identical shapes. Inside most blocks, input and output shapes match (`residual = x`). On the **first block of a stage** where channels increase (e.g. `32 -> 64` or `64 -> 128`) or spatial size halves (`stride=2`, \(32 \times 32 \to 16 \times 16\)), `self.downsample` passes `x` through a \(1 \times 1\) conv + BatchNorm so `residual` matches `out`'s new `(B, C_out, H_out, W_out)` shape.
+- **Why the skip connection (`out + residual`) & parallel `downsample` pipe:**
+  - **Crucial mental picture:** `downsample` is **NOT** in series after `conv2`! It sits on a **parallel side pipe** on `x` (`residual = self.downsample(x)`), while `out` flows through the two \(3 \times 3\) convs.
+  - Inside most blocks, input and output shapes match (`residual = x`), creating a direct identity highway with derivative \(+1\) so gradients don't vanish across 32 layers.
+  - On the **first block of a stage** where channels increase (`32 -> 64`, `64 -> 128`, `128 -> 256`) or spatial size halves (`stride=2`), `self.downsample` passes `x` through a \(1 \times 1\) conv + BatchNorm so `residual` matches `out`'s new `(B, C_out, H_out, W_out)` shape before `+`.
+
+### Cell 21 — `make_shortcut(...)` & `StudentResNet8x4(nn.Module)`
+- **What it does:** Defines `make_shortcut` (the `1×1` Conv + BN shape adapter) and writes out the 8-layer Student (`1,233,540` parameters) explicitly:
+  - Entry stem `conv1` (`3 -> 32`, \(32 \times 32\)) — **1** conv layer
+  - `layer1` (1 `BasicBlock`, `32 -> 64`, \(32 \times 32\)) — **2** conv layers
+  - `layer2` (1 `BasicBlock`, `64 -> 128`, `stride=2` \(\to 16 \times 16\)) — **2** conv layers
+  - `layer3` (1 `BasicBlock`, `128 -> 256`, `stride=2` \(\to 8 \times 8\)) — **2** conv layers
+  - `AvgPool2d(8)` + `fc = nn.Linear(256, 100)` — **1** dense linear layer (\(1 + 2 + 2 + 2 + 1 = \mathbf{8 \text{ layers}}\)).
+- **Why channels double (`64 -> 128 -> 256`) every time spatial size halves (`32 -> 16 -> 8`):**
+  1. *Semantic hierarchy:* Early layers detect simple edges/colors (few needed, high spatial detail `32×32`); deep layers detect complex object parts to separate 100 classes (many detectors `256` needed, coarse spatial grid `8×8`).
+  2. *Constant compute per stage:* Halving \(H, W\) cuts spatial area by \(1/4\), while doubling \(C_{\text{in}}, C_{\text{out}}\) multiplies channel compute by \(4\) (\(\frac{1}{4} \times 4 = 1\)), keeping every stage at the exact same ~`37.7M` FLOPs!
+
+### Cell 22 — `TeacherResNet32x4(nn.Module)` & Loading Pretrained Weights (`strict=True`)
+- **What it does:** Builds the exact same architecture with **5 `BasicBlock`s per stage** instead of 1 (\(1 + 10 + 10 + 10 + 1 = \mathbf{32 \text{ layers}}\), `7,433,860` parameters — `6.03×` larger than the Student), loads `teacher_state` with `strict=True` (`<All keys matched successfully>`), calls `teacher.eval()`, and freezes all Teacher parameters (`requires_grad_(False)`).
+- **Why freeze the Teacher:** During distillation, the Teacher is a fixed oracle—we never update its weights or store gradient buffers for its 7.43M parameters.
+
+### Cell 23 — `evaluate_model(model, loader)` & Verifying ~79.42% Teacher Accuracy
+- **What it does:** Evaluates average Cross-Entropy loss and top-1 accuracy (`logits.argmax(dim=1)`) across all `10,000` test images under `@torch.no_grad()`.
+- **Why:** Confirms our `preprocess_eval` normalization + hand-written `TeacherResNet32x4` reproduces the paper's ~`79.42%` Teacher benchmark before any Student training begins.
+
+### Cells 24 & 25 — Visualizing Teacher's 2D Feature Space & Linear Decision Boundaries
+- **What they do:** Run 600 training images (`apple`, `cattle`, `bus`, `dolphin`) up to the penultimate layer right before `teacher.fc` (`feats_256` of shape `(600, 256)`), project `256-D -> 2-D` via SVD/PCA, and classify a dense 2D grid through `teacher.fc` to plot the learned decision territories.
+- **Why stop right before `teacher.fc`:** `feats_256` is the Teacher's learned representation space where `teacher.fc` cuts linear hyperplanes between classes.
 
 ---
 
-*(To be updated with Stages 3B, 4, 5, and 6 in our next session as each cell is written and verified.)*
+## Stage 4 — Classical KD, TCKD, NCKD, DKD & the 5 Experiment Modes
+
+### Cells 26, 27, 28 & 29 — Classical `kd_loss` & Why Temperature \(T = 4.0\) Exposes Dark Knowledge
+- **What they do:** Implement Hinton's classical KD loss:
+  \[
+  \mathcal{L}_{\text{KD}} = T^2 \cdot \text{KL}\big(\text{softmax}(z^T / T) \;\parallel\; \text{softmax}(z^S / T)\big)
+  \]
+  and plot a real test image's Teacher probabilities at \(T = 1.0\) vs. \(T = 4.0\).
+- **Why divide by \(T = 4.0\) and multiply by \(T^2 = 16\):**
+  - At \(T = 1.0\), a confident Teacher puts ~`0.99` on the true class, squashing runner-up probabilities near zero. Dividing logits by `4.0` softens the distribution so visually similar runner-up classes become visible (**dark knowledge**).
+  - Dividing logits by \(T\) scales gradients down by \(1 / T^2\) in the backpropagation chain rule, so multiplying the loss by \(T^2\) keeps gradient magnitudes balanced with Cross-Entropy.
+
+### Cells 30 & 31 — Real 64-Image Batch Check (`CE = 4.6145`, `KD = 10.6828`) & `crocodile` Bar Plot
+- **What they do:** Pass one 64-image batch through the trained Teacher and an untrained Student, then plot what `CE` compares (hard one-hot `[1, 0, 0, ...]` at \(T=1\)) vs. what `KD` compares (soft Teacher probabilities at \(T=4\)) on Image `0` (`crocodile`).
+- **Why this sanity check is gold:**
+  - Random guessing across 100 classes gives theoretical Cross-Entropy \(-\ln(1/100) = \ln(100) = \mathbf{4.6052}\); getting `4.6145` proves the untrained Student's forward pass is mathematically sound.
+  - On `crocodile`, `CE` assigns `0.0` to `lizard`, `leopard`, `dinosaur`, `tank`, and `sea` (treating `lizard` as equally wrong as `apple`), whereas the Teacher at \(T=4\) exposes real visual kinship across scaly reptiles, armored silhouettes, and water backgrounds!
+
+### Cells 32, 33, 34, 35, 36 & 37 — `tckd_per_sample`, `nckd_per_sample`, `dkd_loss` & Exact Proof of Eq. (1)
+- **What they do:**
+  1. `tckd_per_sample`: Builds the 2-class binary target-vs-rest vector \(b = [p_t, 1 - p_t]\) via `.gather(1, idx)` and computes \(\text{KL}(b^T \parallel b^S)\).
+  2. `nckd_per_sample`: Masks the true class logit to `-1000.0` before `softmax` / `log_softmax` to compute \(\text{KL}(\hat{p}^T \parallel \hat{p}^S)\) over the 99 non-target classes.
+  3. `dkd_loss`: Computes \((\alpha \cdot \text{TCKD} + \beta \cdot \text{NCKD}) \cdot T^2\).
+  4. Numerically and visually proves on our 64-image batch that `TCKD + (1 - p_t^T) * NCKD` reconstructs `kd_loss = 10.6828` to 6 decimal places!
+- **Why masking the true class to `-1000.0` makes the 99 non-targets sum to `1.0` (Conditional Probability!):**
+  - If `crocodile` has probability `0.60`, the remaining 99 classes sum to `0.40`. KL divergence requires valid probability distributions summing to `1.0`, which corresponds to the **conditional probability** *"given the image is NOT `crocodile`, what is the probability of each remaining class?"* (\(\hat{p}_i = \frac{p_i}{1 - p_{\text{croc}}}\)).
+  - Setting the `crocodile` logit to `-1000.0` before `softmax` makes \(e^{-1000} = 0\), which automatically divides all 99 remaining classes by their sum (`0.40`) so they sum to `1.0`—while keeping `log_softmax` finite (`-1000.9` instead of `log(0) = -inf`), preventing `NaN` gradients on GPU!
+- **Why Classical KD fails where DKD shines:**
+  On our batch, `kd_loss = 10.6828` was `9.3069` (`87%`) `TCKD` and only `1.3759` coupled `NCKD` because \((1 - p_t^T)\) crushed dark knowledge on confident images. DKD decouples them with fixed \(\alpha = 1.0, \beta = 8.0\), boosting `NCKD` to `14.9866`!
+
+### Cells 38 & 39 — `compute_student_loss(...)`, Why We Keep \(\alpha=1, \beta=8\) Fixed, & 20-Epoch Warmup Plot
+- **What they do:** Unify all **5 required experiment modes** (`ce`, `kd`, `tckd_only`, `nckd_only`, `dkd`) into one switch with linear warmup `w = min(epoch / 20, 1.0)`, and plot the 5-mode stacked loss bars alongside the 20-epoch warmup curve.
+- **Why we do NOT grid-search \(\alpha\) and \(\beta\):**
+  1. CIFAR-100 has no separate validation split (`50k` train / `10k` test), so tuning \(\alpha, \beta\) on `test_loader` would leak test labels.
+  2. Honest paper reproduction locks the authors' published settings (`alpha = 1.0, beta = 8.0, T = 4.0`).
+  3. Our required semester experiment **is** the controlled 5-mode ablation (`ce` vs. `kd` vs. `tckd_only` \((\alpha=1,\beta=0)\) vs. `nckd_only` \((\alpha=0,\beta=8)\) vs. `dkd` \((\alpha=1,\beta=8)\)).
+- **Why the 20-epoch warmup ramp:** Because `beta = 8.0` makes initial `dkd_loss` (`24.29`) ~`5×` larger than `CE` (`4.61`) on random initial weights, ramping linearly from `1/20` at Epoch 1 to `1.0` at Epoch 20 prevents early gradient shock.
+
+---
+
+*(Next up later today: Stage 5 — SGD optimizer, LR step decay at `[150, 180, 210]`, `train_one_epoch`, 2-epoch local `mps` run + loss/accuracy curves; and Stage 6 — `ms/batch` latency benchmark + outer 5-mode runner!)*

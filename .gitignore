@@ -3,5 +3,7 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 data/
+demo_test_images/
+outputs_scratch/
 .DS_Store
 .pytest_cache/

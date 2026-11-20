@@ -169,4 +169,32 @@ This companion document explains **what each cell in `notebooks/05_dkd_from_scra
 
 ---
 
-*(Next up later today: Stage 5 — SGD optimizer, LR step decay at `[150, 180, 210]`, `train_one_epoch`, 2-epoch local `mps` run + loss/accuracy curves; and Stage 6 — `ms/batch` latency benchmark + outer 5-mode runner!)*
+## Stage 5 — Optimizer, LR Step Schedule, Auto-Resume & Training Loop
+
+### Cells 40 & 41 — `adjust_lr(...)` & `train_one_epoch(...)`
+- **What they do:**
+  - `adjust_lr`: Implements the exact DKD / `mdistiller` step-decay schedule (`base_lr = 0.05`, multiplied by `0.1` at epochs `150`, `180`, and `210` $\rightarrow$ `0.05 -> 0.005 -> 0.0005 -> 0.00005`) using `SGD(momentum=0.9, weight_decay=5e-4)`.
+  - `train_one_epoch`: Sets `student.train()` and `teacher.eval()` (critical so Teacher `BatchNorm2d` running stats stay frozen!), runs the Teacher inside `with torch.no_grad():` (skipped completely when `mode == "ce"`), backpropagates strictly into `student.parameters()`, and synchronizes `cuda`/`mps` streams before recording honest `ms/batch` wall-clock latency.
+
+### Cells 42 & 43 — `eval_student(...)`, `run_experiment(...)` & `plot_history(...)`
+- **What they do:**
+  - Resets `SEED = 42` at the start of every experiment so all Student runs begin from **identical initial weights**.
+  - Saves `ckpt_last.pth` + `history.json` after every epoch and `ckpt_best.pth` whenever test accuracy reaches a new high.
+  - Supports **automatic checkpoint resume** (`resume=True`): if a Colab session disconnects mid-run, re-running loads `ckpt_last.pth` (including optimizer momentum buffers and history) and continues from `last_epoch + 1`.
+
+---
+
+## Stage 6 — Our 3 Custom Experiments, Reproduction Suite & Colab Export
+
+### Cells 44 & 45 — Own Experiment #3: Computational & Compression Analysis (`benchmark_speed`)
+- **What it does:** Benchmarks step latency (`ms/batch`) across all 5 loss modes (`ce`, `kd`, `tckd_only`, `nckd_only`, `dkd`) after 5 warmup steps, and compares model footprint (`28.4 MB` Teacher vs. `4.7 MB` Student).
+- **Why:** Proves empirically that decoupling `KD` into `DKD` adds negligible training overhead (`113.2 ms` vs. `119.1 ms` on `mps`) because both reuse the exact same single Teacher forward pass (`0` extra parameters), while achieving a **`6.03×` deployment size reduction**.
+
+### Cells 46, 48, 49 & 50 — Google Drive Isolation (`MyDrive/DKD_Final_Training`), 7-Run Loop & Zip Export
+- **What they do:**
+  1. Mounts Google Drive on Colab to `/content/drive/MyDrive/DKD_Final_Training` (isolated from any older runs).
+  2. Executes all **7 controlled runs** sharing `dkd_T4` across tables so zero GPU hours are wasted:
+     - **Paper Reproduction (Rubric §6):** `dkd_T4`, `ce`, `kd_T4`
+     - **Own Experiment #1 — Component Ablation (Rubric §7A):** `tckd_only_T4` ($\alpha=1,\beta=0$), `nckd_only_T4` ($\alpha=0,\beta=8$)
+     - **Own Experiment #2 — Temperature Sensitivity Sweep (Rubric §7B):** `dkd_T1` ($T=1.0$), `dkd_T4` ($T=4.0$), `dkd_T10` ($T=10.0$)
+  3. Bundles all resulting `ckpt_best.pth` and `history.json` files into `dkd_final_training_results.zip` for 1-click download into the local Streamlit app (`outputs_final/`).

@@ -161,15 +161,54 @@ $$
 
 ---
 
-## Remaining Roadmap (Pick Up Here Later Today — Only ~3–4 Cells Left!)
+### Stage 5 — Training Step, LR Schedule, Auto-Resume & Local Smoke Run (Done)
+- Implemented `adjust_lr` (exact DKD schedule: `0.05` decayed by `0.1x` at epochs `[150, 180, 210]`) and `train_one_epoch` (Student gradient tracking vs. Teacher `torch.no_grad()`, synchronized GPU `ms/batch` stopwatch).
+- Implemented `eval_student`, `run_experiment` (with fixed `SEED = 42` reset per run, `ckpt_last.pth` / `ckpt_best.pth` saving, `history.json` logging, and Colab disconnect auto-resume), and `plot_history`.
+- Verified 3-epoch smoke run on Mac `mps` (`CE` dropping `4.51 -> 4.20`).
 
-### Stage 5 — Training Step, LR Schedule & Local Smoke Run (~2 cells, ~20 mins)
-1. **Cell A — Optimizer, Step-Decay LR (`[150, 180, 210]`) & `train_one_epoch`:**
-   - Build SGD (`lr=0.05, momentum=0.9, weight_decay=5e-4`) and step-decay helper (`0.1x` at epochs `150, 180, 210`).
-   - Write `train_one_epoch(...)` clearly showing `with torch.no_grad(): logits_t = teacher(x)` (cutting gradients to Teacher) vs. `loss.backward(); optimizer.step()` (updating Student only), plus per-batch `ms/batch` timing.
-2. **Cell B — 2-Epoch Local Sanity Run (`FAST_DEV_RUN = True`) + Training Curve Plot + Save/Resume Checkpoint:**
-   - Run 2 quick epochs on `mps`, plot Loss & Accuracy across epochs, and verify saving/resuming `ckpt_last.pth` and `ckpt_best.pth`.
+### Stage 6 — Computational Benchmark, 7-Run Experiment Suite & Colab L4 Launch (Done / Running on Colab L4!)
+- Completed **Own Experiment #3 (Category F — Computational & Compression Analysis)** in Cell 45 (`ce: 53.65 ms/b`, `kd: 113.16 ms/b`, `dkd: 119.14 ms/b`; model size `28.4 MB -> 4.7 MB`, `6.03x` compression).
+- Set up isolated Google Drive persistence (`MyDrive/DKD_Final_Training`) + 1-click `.zip` export across all **7 runs**:
+  - **Reproduction (25%):** `dkd_T4`, `ce`, `kd_T4`
+  - **Own Experiment #1 — Component Ablation (Cat. A):** `tckd_only_T4`, `nckd_only_T4`
+  - **Own Experiment #2 — Temperature Sensitivity Sweep (Cat. B):** `dkd_T1` (`T=1.0`), `dkd_T4` (`T=4.0`), `dkd_T10` (`T=10.0`)
+- Launched full 240-epoch training on **Google Colab NVIDIA L4 GPU** (`~18.6 ms/batch`, auto-resume already verified live across a runtime reconnect!).
 
-### Stage 6 — Outer Experiment Loop for the 5 Ablation Modes (~1–2 cells, ~15 mins)
-1. **Cell A — `ms/batch` Latency Benchmark Across All 5 Modes:** Prove DKD adds zero extra forward pass over vanilla KD.
-2. **Cell B — Clean `run_experiment(mode)` Outer Loop:** Loop over `["ce", "kd", "tckd_only", "nckd_only", "dkd"]` with fixed `SEED = 42` so the single `.ipynb` file is 100% ready for full 240-epoch Google Colab GPU runs (`FAST_DEV_RUN = False`).
+### Stage 7 — Streamlit Web Deployment (`app.py` — Done Locally, Ready for Hugging Face Spaces!)
+- Built standalone `app.py` (`Input -> 32x32 Resize & Eval Normalization -> Student ResNet8x4 + Reference Teacher ResNet32x4 -> Top-5 Confidence, Latency (ms), Interactive NCKD Dark-Knowledge Explorer & Experiment Leaderboard`).
+- Verified live on `http://localhost:8501`, with automatic CIFAR-100 + Teacher checkpoint fetching built in for zero-friction **Hugging Face Spaces** cloud deployment.
+
+---
+
+## Key Scientific Insights & Catchy One-Liners (For Final Report, Slides & Viva)
+
+1. **Why `+1.56%` (`74.49% -> 76.05%`) Is Huge — "Teacher-Gap Closure, Not Raw Percentage":**
+   - On CIFAR-100, even the `6.03x` larger Teacher (`ResNet32×4`, `28.4 MB`) ceilings at **`79.42%`**, while the standalone `4.7 MB` Student (`ResNet8×4`) reaches **`72.89%`** — leaving a total recoverable Teacher–Student gap of only **`6.53%`**.
+   - Classical KD (`74.49%`) closes **`24.5%`** of that gap (`+1.60%`); DKD (`76.05%`, or `76.25%` 2-run mean across `03` and `05`) closes **`48.4%–51.5%` — literally transferring `2x` as much of the Teacher's advantage** into the exact same tiny network.
+
+2. **Zero-Cost Production Upgrade ("Loss Function, Not Architecture"):**
+   - *"DKD is a training-time grading rubric, not an inference-time module."* Once Epoch 240 ends, the Teacher, Optimizer, and Loss Function are discarded: DKD ships **`0` extra parameters (`4.7 MB`), `0.00 ms` extra inference latency, and `< 2%` extra training time over KD** (`18.3 ms/batch -> 18.6 ms/batch` on NVIDIA L4, vs. `9.5 ms/batch` for plain `CE`).
+
+3. **Signal vs. Seed Variance (`0.40%` vs. `+1.56%–2.72%`):**
+   - Two independent `dkd_T4` runs (`76.45%` in `03` and `76.05%` in `05`, mean **`76.25%`**) sit within \(\pm 0.27\%\) (\(1\sigma\) single-seed noise on `10,000` test images) of Zhao et al.'s 5-trial mean (**`76.32%`**). In contrast, DKD's gain over Classical KD (`+1.56%` vs. our unit-weight `kd_T4`, `+2.72%` vs. Table 6 KD) is a **\(> 5\sigma\) algorithmic signal**.
+
+4. **Overfitting Regularization Visible Directly in `tr_acc` vs. `te_acc` (Epoch 240):**
+   - `ce` memorizes one-hot labels (`95.3%` train vs. `72.36%` test = **`22.9%` generalization gap**).
+   - `kd_T4` shrinks the gap slightly (`93.5%` train vs. `74.10%` test), because as the Teacher's confidence \(p_t^T \to 1\), the coupled \((1 - p_t^T)\) factor mutes dark knowledge.
+   - `dkd_T4` holds training accuracy at **`90.0%`** while lifting test accuracy to **`76.05%`** (**cutting the generalization gap to `14.0%`**) because \(\beta = 8.0\) forces the Student to keep fitting all 99 inter-class similarities rather than memorizing hard labels.
+
+5. **The Smoking-Gun Ablation (`tckd_only_T4` Hurts Below Plain `CE`!):**
+   - *"Listening to a confident Teacher's binary target score without its non-target dark knowledge is worse than having no Teacher at all."* Turning off `NCKD` (\(\alpha = 1, \beta = 0\)) drags accuracy ~`4%` **below** plain `CE`, proving empirically that Hinton's "dark knowledge" lives almost entirely inside the 99 non-target classes (`NCKD`).
+
+6. **Why `dkd_T1` (`75.61%` at \(T = 1.0\)) Beats `kd_T4` (`74.49%` at \(T = 4.0\)):**
+   - Classical KD needs high temperature (\(T = 4\)) primarily as a crutch to stop \((1 - p_t^T)\) from collapsing to zero. Once DKD decouples `NCKD` with an independent weight \(\beta = 8.0\), **even unsoftened \(T = 1.0\) logits (`75.61%`) outperform softened Classical KD (`74.49%`)**, while \(T = 4.0\) (`76.05%`) hits the sweet spot before \(T = 10.0\) over-flattens class rankings toward uniform noise.
+
+7. **Controlled Experimental Hygiene (Paper Table 1 vs. Table 6):**
+   - Keeping `1.0 * CE` fixed across all 5 modes (`ce`, `kd_T4`, `tckd_only_T4`, `nckd_only_T4`, `dkd_T4` — matching Paper Table 1's `73.63%` unit-weight KD setup rather than Table 6's `0.1 CE + 0.9 KD` `73.33%` setup) guarantees zero confounding from changing the `CE` weight by \(10\times\).
+
+---
+
+## Final Stretch Before Nov 23 Deadline
+1. **Unzip Colab Results:** Once Colab finishes all 7 runs, download `dkd_final_training_results.zip` and extract into `outputs_final/` (`unzip dkd_final_training_results.zip -d outputs_final`).
+2. **Deploy Public URL on Hugging Face Spaces (~5 mins):** Create a free Streamlit Space on `huggingface.co/spaces` and push `app.py`, `outputs_final/` (`ckpt_best.pth` + `history.json`), and Space `requirements.txt`.
+3. **Final Report & README Update:** Compile the 12-section Final Research Report (extending `docs/mid_eval/mid_evaluation_report.tex` with Reproduction, 3 Own Experiments, and Deployment screenshots/URL) and update `README.md`.

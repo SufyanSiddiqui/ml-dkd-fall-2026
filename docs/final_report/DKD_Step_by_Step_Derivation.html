@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DKD Complete 23-Step Algebraic Derivation (CVPR 2022)</title>
+
+  <!-- KaTeX for instant, crisp LaTeX rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '\\(', right: '\\)', display: false}
+      ],
+      throwOnError: false
+    });"></script>
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --border: #e2e8f0;
+      --blue: #1d4ed8;
+      --blue-bg: #eff6ff;
+      --teal: #0f766e;
+      --teal-bg: #f0fdfa;
+      --red: #b91c1c;
+      --red-bg: #fef2f2;
+      --amber: #c2410c;
+      --amber-bg: #fff7ed;
+      --violet: #6d28d9;
+      --violet-bg: #f5f3ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 36px 20px 64px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--slate-900);
+      line-height: 1.55;
+    }
+
+    .container {
+      max-width: 940px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: var(--slate-900);
+      color: #ffffff;
+      padding: 28px 32px;
+      border-radius: 14px;
+      margin-bottom: 28px;
+    }
+    header .eyebrow {
+      color: #fb923c;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 1.75rem;
+      line-height: 1.25;
+    }
+    header p {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 0.95rem;
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .legend-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.88rem;
+    }
+    .legend-box strong {
+      display: block;
+      color: var(--slate-900);
+      margin-bottom: 3px;
+    }
+    .legend-box span { color: var(--slate-700); }
+
+    .phase-title {
+      margin: 34px 0 14px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--slate-900);
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 22px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+    .step.flaw {
+      background: var(--red-bg);
+      border-color: #fca5a5;
+    }
+    .step.fix {
+      background: var(--amber-bg);
+      border-color: #fdba74;
+    }
+    .step.ident {
+      background: var(--teal-bg);
+      border-color: #5eead4;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--slate-900);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.84rem;
+      flex-shrink: 0;
+    }
+    .step.flaw .badge { background: var(--red); }
+    .step.fix .badge { background: var(--amber); }
+    .step.ident .badge { background: var(--teal); }
+
+    .step-action {
+      font-weight: 700;
+      font-size: 0.98rem;
+      color: var(--slate-900);
+    }
+    .step-why {
+      margin: 2px 0 10px 42px;
+      font-size: 0.9rem;
+      color: var(--slate-700);
+    }
+    .math-block {
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-left: 42px;
+      overflow-x: auto;
+    }
+
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .step { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="eyebrow">Zhao et al., CVPR 2022 · Viva &amp; Presentation Math Guide</div>
+      <h1>Decoupled Knowledge Distillation — Complete 23-Step Algebraic Derivation</h1>
+      <p>Every single algebraic rule shown one micro-step at a time, with zero skipped steps from raw logits to the final PyTorch loss.</p>
+    </header>
+
+    <!-- Quick Symbol Dictionary -->
+    <div class="legend-grid">
+      <div class="legend-box">
+        <strong>\(C = 100\) &amp; \(t \in \{1..C\}\)</strong>
+        <span>Total classes (\(100\)) and the ground-truth target class index \(t\) of the current image.</span>
+      </div>
+      <div class="legend-box">
+        <strong>\(z_i^T,\; z_i^S\)</strong>
+        <span>Raw pre-softmax output logits from the Teacher (\(T\)) and Student (\(S\)) for class \(i\).</span>
+      </div>
+      <div class="legend-box">
+        <strong>\(\mathbf{b} = [p_t,\; p_{\setminus t}]\)</strong>
+        <span>2-bucket binary probability vector: target probability vs. sum of all 99 non-target probabilities.</span>
+      </div>
+      <div class="legend-box">
+        <strong>\(\hat{\mathbf{p}} = [\hat{p}_i]_{i \neq t}\)</strong>
+        <span>99-class conditional non-target distribution (renormalized so the 99 wrong classes sum to \(1\)).</span>
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <div class="phase-title">Phase I (Steps 1–4): From Raw Logits to Classical Hinton KD</div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">1</span>
+        <span class="step-action">Start with Teacher &amp; Student raw logit vectors</span>
+      </div>
+      <div class="step-why">Both networks take one image \(\mathbf{x}\) (true class \(t\)) and output \(C\) unbounded real scores.</div>
+      <div class="math-block">
+        $$\mathbf{z}^T = [z_1^T, z_2^T, \dots, z_C^T] \in \mathbb{R}^C, \qquad \mathbf{z}^S = [z_1^S, z_2^S, \dots, z_C^S] \in \mathbb{R}^C$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">2</span>
+        <span class="step-action">Convert logits into temperature-softened probabilities via Softmax</span>
+      </div>
+      <div class="step-why">Dividing logits by temperature \(T &gt; 0\) before exponentiating flattens sharp peaks so small probabilities become visible.</div>
+      <div class="math-block">
+        $$p_i^T = \frac{\exp(z_i^T / T)}{\sum_{j=1}^{C} \exp(z_j^T / T)}, \qquad p_i^S = \frac{\exp(z_i^S / T)}{\sum_{j=1}^{C} \exp(z_j^S / T)} \qquad \text{for } i = 1, \dots, C$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">3</span>
+        <span class="step-action">Write the Kullback–Leibler (KL) divergence between \(p^T\) and \(p^S\)</span>
+      </div>
+      <div class="step-why">KL divergence measures the information lost when the Student distribution \(p^S\) approximates the Teacher distribution \(p^T\).</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = \sum_{i=1}^{C} p_i^T \ln\left(\frac{p_i^T}{p_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">4</span>
+        <span class="step-action">Define Hinton's Classical KD Loss (and hold \(T^2\) aside while we simplify KL)</span>
+      </div>
+      <div class="step-why">Classical KD scales \(\mathrm{KL}(p^T \parallel p^S)\) by \(T^2\). Let us first expand \(\mathrm{KL}(p^T \parallel p^S)\) cleanly, then multiply back by \(T^2\) at the end.</div>
+      <div class="math-block">
+        $$\mathcal{L}_{\mathrm{KD}} = T^2 \, \mathrm{KL}(p^T \parallel p^S)$$
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <div class="phase-title">Phase II (Steps 5–9): Splitting Target Mass from Non-Target Mass</div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">5</span>
+        <span class="step-action">Pull the single target term (\(i = t\)) out of the \(C\)-class summation</span>
+      </div>
+      <div class="step-why">A sum over all \(100\) classes is simply the \(1\) true class \(t\) plus the sum over the remaining \(99\) non-target classes (\(i \neq t\)).</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} p_i^T \ln\left(\frac{p_i^T}{p_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">6</span>
+        <span class="step-action">Define total non-target probability mass \(p_{\setminus t}\)</span>
+      </div>
+      <div class="step-why">Since all \(C\) probabilities sum to \(1\), the combined probability of all \(99\) wrong classes equals \(1 - p_t\).</div>
+      <div class="math-block">
+        $$p_{\setminus t} \;\triangleq\; \sum_{j \neq t} p_j \;=\; 1 - p_t \qquad \text{(applies identically to } p_{\setminus t}^T \text{ and } p_{\setminus t}^S\text{)}$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">7</span>
+        <span class="step-action">Form the 2-element binary distribution \(\mathbf{b}\)</span>
+      </div>
+      <div class="step-why">\(\mathbf{b}\) is a valid 2-class probability distribution (\([p_t, \, 1-p_t]\)) answering: "Target class vs. Everything else?"</div>
+      <div class="math-block">
+        $$\mathbf{b}^T = [p_t^T,\; p_{\setminus t}^T], \qquad \mathbf{b}^S = [p_t^S,\; p_{\setminus t}^S], \qquad \text{where } p_t + p_{\setminus t} = 1$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">8</span>
+        <span class="step-action">Define the conditional non-target probability \(\hat{p}_i\) for every \(i \neq t\)</span>
+      </div>
+      <div class="step-why">Divide each non-target probability \(p_i\) by total non-target mass \(p_{\setminus t}\). Notice the full softmax denominators cancel out, and \(\sum_{i \neq t}\hat{p}_i = 1\)!</div>
+      <div class="math-block">
+        $$\hat{p}_i \;\triangleq\; \frac{p_i}{p_{\setminus t}} \;=\; \frac{\exp(z_i / T)}{\sum_{j \neq t} \exp(z_j / T)} \quad (\forall\, i \neq t), \qquad \text{with } \sum_{i \neq t} \hat{p}_i = \frac{\sum_{i \neq t} p_i}{p_{\setminus t}} = 1$$
+      </div>
+    </div>
+
+    <div class="step ident">
+      <div class="step-header">
+        <span class="badge">9</span>
+        <span class="step-action">Multiply both sides of Step 8 by \(p_{\setminus t}\) to get the key substitution rule</span>
+      </div>
+      <div class="step-why">Every individual non-target probability \(p_i\) is the product of total non-target mass \(p_{\setminus t}\) and conditional share \(\hat{p}_i\).</div>
+      <div class="math-block">
+        $$p_i^T = p_{\setminus t}^T \cdot \hat{p}_i^T \qquad \text{and} \qquad p_i^S = p_{\setminus t}^S \cdot \hat{p}_i^S \qquad (\forall\, i \neq t)$$
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <div class="phase-title">Phase III (Steps 10–16): Expanding the Non-Target Sum One Rule at a Time</div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">10</span>
+        <span class="step-action">Substitute \(p_i^T = p_{\setminus t}^T \hat{p}_i^T\) and \(p_i^S = p_{\setminus t}^S \hat{p}_i^S\) into Step 5</span>
+      </div>
+      <div class="step-why">Replace \(p_i^T\) and \(p_i^S\) inside the \(i \neq t\) summation using Step 9.</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} \left(p_{\setminus t}^T \hat{p}_i^T\right) \ln\left(\frac{p_{\setminus t}^T \hat{p}_i^T}{p_{\setminus t}^S \hat{p}_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">11</span>
+        <span class="step-action">Separate the fraction inside the logarithm into two multiplied ratios</span>
+      </div>
+      <div class="step-why">Use basic fraction multiplication: \(\frac{A \cdot B}{C \cdot D} = \left(\frac{A}{C}\right)\left(\frac{B}{D}\right)\).</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} p_{\setminus t}^T \hat{p}_i^T \ln\left[\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right)\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right)\right]$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">12</span>
+        <span class="step-action">Apply the logarithm product identity \(\ln(X \cdot Y) = \ln X + \ln Y\)</span>
+      </div>
+      <div class="step-why">Turn the log of a product into the sum of two logs.</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} p_{\setminus t}^T \hat{p}_i^T \left[ \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right) + \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right) \right]$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">13</span>
+        <span class="step-action">Distribute \(p_{\setminus t}^T \hat{p}_i^T\) across the brackets</span>
+      </div>
+      <div class="step-why">Multiply \(p_{\setminus t}^T \hat{p}_i^T\) onto both log terms inside the summation.</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} \left[ p_{\setminus t}^T \hat{p}_i^T \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right) \;+\; p_{\setminus t}^T \hat{p}_i^T \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right) \right]$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">14</span>
+        <span class="step-action">Split the summation of two terms into two separate summations</span>
+      </div>
+      <div class="step-why">Use linearity of summation: \(\sum (u_i + v_i) = \sum u_i + \sum v_i\).</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; \sum_{i \neq t} p_{\setminus t}^T \hat{p}_i^T \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right) \;+\; \sum_{i \neq t} p_{\setminus t}^T \hat{p}_i^T \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">15</span>
+        <span class="step-action">Factor terms that do NOT depend on index \(i\) outside each summation</span>
+      </div>
+      <div class="step-why">Neither \(p_{\setminus t}^T\) nor \(\ln(p_{\setminus t}^T / p_{\setminus t}^S)\) depends on \(i\), so pull them in front of the \(\sum_{i \neq t}\) signs!</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) \;+\; p_{\setminus t}^T \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right) \underbrace{\left(\sum_{i \neq t} \hat{p}_i^T\right)}_{=\,1} \;+\; p_{\setminus t}^T \sum_{i \neq t} \hat{p}_i^T \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step ident">
+      <div class="step-header">
+        <span class="badge">16</span>
+        <span class="step-action">Apply \(\sum_{i \neq t} \hat{p}_i^T = 1\) (proven in Step 8)</span>
+      </div>
+      <div class="step-why">Because the 99 conditional non-target probabilities sum to \(1\), the middle summation simplifies to multiplying by \(1\)!</div>
+      <div class="math-block">
+        $$\mathrm{KL}(p^T \parallel p^S) = \left[ p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) + p_{\setminus t}^T \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right) \right] \;+\; p_{\setminus t}^T \left[ \sum_{i \neq t} \hat{p}_i^T \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right) \right]$$
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <div class="phase-title">Phase IV (Steps 17–20): Recognizing TCKD, NCKD &amp; the Suppression Flaw</div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">17</span>
+        <span class="step-action">Recognize the first bracket as \(\mathrm{TCKD} = \mathrm{KL}(\mathbf{b}^T \parallel \mathbf{b}^S)\)</span>
+      </div>
+      <div class="step-why">Look at the two terms in the first bracket: they are the exact 2-class KL divergence between \(\mathbf{b}^T = [p_t^T, p_{\setminus t}^T]\) and \(\mathbf{b}^S = [p_t^S, p_{\setminus t}^S]\)!</div>
+      <div class="math-block">
+        $$\mathrm{TCKD} \;\triangleq\; \mathrm{KL}(\mathbf{b}^T \parallel \mathbf{b}^S) \;=\; p_t^T \ln\left(\frac{p_t^T}{p_t^S}\right) + p_{\setminus t}^T \ln\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">18</span>
+        <span class="step-action">Recognize the second bracket as \(\mathrm{NCKD} = \mathrm{KL}(\hat{\mathbf{p}}^T \parallel \hat{\mathbf{p}}^S)\)</span>
+      </div>
+      <div class="step-why">The remaining sum over \(i \neq t\) is the exact 99-class KL divergence between the non-target distributions \(\hat{\mathbf{p}}^T\) and \(\hat{\mathbf{p}}^S\)!</div>
+      <div class="math-block">
+        $$\mathrm{NCKD} \;\triangleq\; \mathrm{KL}(\hat{\mathbf{p}}^T \parallel \hat{\mathbf{p}}^S) \;=\; \sum_{i \neq t} \hat{p}_i^T \ln\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right)$$
+      </div>
+    </div>
+
+    <div class="step flaw">
+      <div class="step-header">
+        <span class="badge">19</span>
+        <span class="step-action">Substitute \(p_{\setminus t}^T = 1 - p_t^T\) and restore \(T^2\) — Exact Classical KD Identity!</span>
+      </div>
+      <div class="step-why">Substitute Steps 17 &amp; 18 into Step 16 (and multiply back by \(T^2\) from Step 4). Zero approximations were made anywhere!</div>
+      <div class="math-block">
+        $$\mathcal{L}_{\mathrm{KD}} \;=\; T^2 \Big[\; 1 \cdot \mathrm{TCKD} \;+\; (1 - p_t^T) \cdot \mathrm{NCKD} \;\Big]$$
+      </div>
+    </div>
+
+    <div class="step flaw">
+      <div class="step-header">
+        <span class="badge">20</span>
+        <span class="step-action">Plug in numbers to see WHY Classical KD fails on confident Teacher predictions</span>
+      </div>
+      <div class="step-why">When the Teacher clearly recognizes an image (\(p_t^T = 0.99\)), its ranking of visually similar cousin classes (\(\mathrm{NCKD}\)) is super reliable—yet \((1 - p_t^T)\) crushes \(\mathrm{NCKD}\) by \(100\times\)!</div>
+      <div class="math-block">
+        $$p_t^T = 0.99 \;\Longrightarrow\; (1 - p_t^T) = 0.01 \quad \text{(99\% of Dark Knowledge destroyed!)}$$
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <div class="phase-title">Phase V (Steps 21–23): The DKD Fix, \(T^2\) Gradient Scaling &amp; Total Training Objective</div>
+
+    <div class="step fix">
+      <div class="step-header">
+        <span class="badge">21</span>
+        <span class="step-action">Decouple the weights: replace \(1\) with \(\alpha\) and replace \((1 - p_t^T)\) with constant \(\beta\)</span>
+      </div>
+      <div class="step-why">Free \(\mathrm{NCKD}\) from Teacher confidence \(p_t^T\)! On CIFAR-100 (\(\texttt{ResNet32x4} \to \texttt{ResNet8x4}\)), \(\alpha = 1.0\) and \(\beta = 8.0\).</div>
+      <div class="math-block">
+        $$\mathcal{L}_{\mathrm{DKD}} \;=\; T^2 \Big(\; \alpha \cdot \mathrm{TCKD} \;+\; \beta \cdot \mathrm{NCKD} \;\Big)$$
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header">
+        <span class="badge">22</span>
+        <span class="step-action">Why multiply by \(T^2\)? (Chain-rule gradient preservation)</span>
+      </div>
+      <div class="step-why">Differentiating \(\mathrm{KL}(p^T \parallel p^S)\) with respect to student logit \(z_i^S\) pulls out \(1/T\), and for large \(T\), \(p_i^S - p_i^T \propto (z_i^S - z_i^T)/T\) pulls out a second \(1/T\). Multiplying by \(T^2\) cancels \(1/T^2\) so gradients don't vanish at \(T=4, 10, 100\)!</div>
+      <div class="math-block">
+        $$\frac{\partial\,\mathrm{KL}(p^T \parallel p^S)}{\partial z_i^S} = \frac{1}{T}(p_i^S - p_i^T) \;\approx\; \frac{1}{C\,T^2}\big((z_i^S - \bar{z}^S) - (z_i^T - \bar{z}^T)\big) \;\;\Longrightarrow\;\; T^2 \cdot \frac{\partial\,\mathrm{KL}}{\partial z_i^S} = \mathcal{O}(1)$$
+      </div>
+    </div>
+
+    <div class="step ident">
+      <div class="step-header">
+        <span class="badge">23</span>
+        <span class="step-action">Final Student Training Loss (with 20-epoch linear warmup in PyTorch)</span>
+      </div>
+      <div class="step-why">Combine standard hard-label Cross-Entropy (\(\mathcal{L}_{\mathrm{CE}} = -\ln p_t^S(T{=}1)\)) with linearly warmed-up \(\mathcal{L}_{\mathrm{DKD}}\) so \(\beta = 8.0\) doesn't overwhelm random Epoch-1 weights.</div>
+      <div class="math-block">
+        $$\mathcal{L}_{\mathrm{total}}(\text{epoch}) \;=\; \mathcal{L}_{\mathrm{CE}}(\mathbf{z}^S, t) \;+\; \min\!\left(\frac{\text{epoch}}{20},\, 1.0\right) \cdot T^2 \Big(\alpha\,\mathrm{KL}(\mathbf{b}^T \parallel \mathbf{b}^S) + \beta\,\mathrm{KL}(\hat{\mathbf{p}}^T \parallel \hat{\mathbf{p}}^S)\Big)$$
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

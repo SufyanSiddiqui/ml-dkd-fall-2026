@@ -460,16 +460,16 @@ with tab_infer:
             # Curated 1-click showcase presets (unseen test images where DKD succeeds & plain CE fails!)
             st.caption("Quick Demo Presets (1-click unseen test images):")
             q1, q2, q3, q4 = st.columns(4)
-            if q1.button("🐊 Crocodile", use_container_width=True):
+            if q1.button("🐊 Crocodile", width="stretch"):
                 st.session_state.picked_class = "crocodile"
                 st.session_state.sample_pos = 8
-            if q2.button("🚌 Bus", use_container_width=True):
+            if q2.button("🚌 Bus", width="stretch"):
                 st.session_state.picked_class = "bus"
                 st.session_state.sample_pos = 2
-            if q3.button("🐬 Dolphin", use_container_width=True):
+            if q3.button("🐬 Dolphin", width="stretch"):
                 st.session_state.picked_class = "dolphin"
                 st.session_state.sample_pos = 17
-            if q4.button("🎲 Surprise Me", use_container_width=True):
+            if q4.button("🎲 Surprise Me", width="stretch"):
                 st.session_state.picked_class = "(Any class)"
                 st.session_state.sample_pos = int(np.random.randint(0, 10000))
 
@@ -574,7 +574,7 @@ with tab_infer:
                     "#c45911",
                     highlight_name=true_name,
                 ),
-                use_container_width=True,
+                width="stretch",
             )
 
         with col_t:
@@ -594,7 +594,7 @@ with tab_infer:
                     "#1f4e79",
                     highlight_name=true_name,
                 ),
-                use_container_width=True,
+                width="stretch",
             )
 
         # --- Section 4: Full-Width Dark Knowledge (NCKD) Microscope ---
@@ -657,7 +657,7 @@ with tab_infer:
                     f"Teacher NCKD Distribution p̂^T over 99 Non-Targets (T={temp_viz:.1f})",
                     "#7b2cbf",
                 ),
-                use_container_width=True,
+                width="stretch",
             )
         with dk2:
             st.plotly_chart(
@@ -667,7 +667,7 @@ with tab_infer:
                     f"Student ({selected_run_id}) NCKD Distribution p̂^S on Same 6 Classes",
                     "#2a9d8f",
                 ),
-                use_container_width=True,
+                width="stretch",
             )
 
 # =====================================================================
@@ -704,7 +704,7 @@ with tab_exp:
         )
 
     if summary_rows:
-        st.dataframe(summary_rows, use_container_width=True, hide_index=True)
+        st.dataframe(summary_rows, width="stretch", hide_index=True)
 
         st.markdown("#### Interactive Training & Convergence Curves")
         preset_view = st.radio(
@@ -766,6 +766,6 @@ with tab_exp:
                 height=460,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
             )
-            st.plotly_chart(fig_acc, use_container_width=True)
+            st.plotly_chart(fig_acc, width="stretch")
     else:
         st.info("No `history.json` files found in `outputs_final/` yet.")

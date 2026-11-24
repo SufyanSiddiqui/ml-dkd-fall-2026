@@ -1,160 +1,125 @@
-# Decoupled Knowledge Distillation — CIFAR-100
+# Decoupled Knowledge Distillation (DKD) on CIFAR-100 — Reproduction, Ablation & Deployment
 
-Course project for Machine Learning, Fall 2026. The paper is Zhao et al.,
-CVPR 2022, "Decoupled Knowledge Distillation." The reproduction is one
-CIFAR-100 pair: a ResNet32×4 teacher and a ResNet8×4 student. A later
-experiment compares TCKD only, NCKD only, DKD, and ordinary KD. Training
-has not started.
+**Machine Learning (Fall 2026) — MS Data Science**  
+**Group Members:** Muhammad Sufyan Siddiqui (`36389`) & Muhammad Mudassir (`36374`)  
+**Instructor:** Dr. Rizwan Khan  
+**Reference Paper:** Borui Zhao, Quan Cui, Renjie Song, Yiyu Qiu, and Jiajun Liang, *"Decoupled Knowledge Distillation,"* CVPR 2022, pp. 11953–11962.
 
-This tree holds the mid-evaluation data pipeline and the literature / EDA
-report.
+---
 
-Muhammad Sufyan Siddiqui — 36389
-Muhammad Mudassir — 36374
-Program: MS Data Science
-Instructor: Doctor Rizwan Khan
+## Project Links & Frozen Artifacts
 
-## What is in git, and what is not
+| Artifact | Location / Public Link |
+| :--- | :--- |
+| **Source Code Repository** | `https://github.com/SufyanSiddiqui/ml-dkd-fall-2026` |
+| **10 Trained Checkpoints (`240` Epochs)** | [`outputs_final/`](outputs_final/) (`ckpt_best.pth` + `history.json` for every run) |
+| **Live Deployed Web App (HF Spaces)** | `https://huggingface.co/spaces/SufyanSiddiqui/dkd-cifar100` |
+| **Final Research Report (`.pdf` + `.tex`)** | [`docs/final_report/Final_Research_Report.pdf`](docs/final_report/Final_Research_Report.pdf) & [`docs/final_report/final_report.tex`](docs/final_report/final_report.tex) |
+| **Deliverable 2 Mid-Eval Report (`.tex`)** | [`docs/mid_eval/mid_evaluation_report.tex`](docs/mid_eval/mid_evaluation_report.tex) |
+| **Self-Contained From-Scratch Notebook** | [`notebooks/05_dkd_from_scratch.ipynb`](notebooks/05_dkd_from_scratch.ipynb) |
 
-These are created on each machine and are listed in `.gitignore`:
+---
 
-| Path | What it is | Approximate size |
-| --- | --- | --- |
-| `.venv/` | The project virtual environment | about 340 MB |
-| `data/` | The CIFAR-100 archive and the extracted batches | about 520 MB after extraction |
+## Key Results Summary (`ResNet32×4` Teacher `79.42%` $\longrightarrow$ `ResNet8×4` Student)
 
-Do not upload `.venv` or `data` to GitHub. The archive is also larger than
-GitHub's 100 MB file limit. `scripts/setup_project.py` builds both on a
-new machine.
+All 10 student models (`1,233,540` params, **`4.71 MB`**, **`6.03×` smaller** than the `28.36 MB` Teacher) were trained from scratch for **240 epochs** (`SEED = 42`, SGD `lr=0.05` decayed by `0.1×` at `[150, 180, 210]`, `batch_size=64`) on an NVIDIA L4 GPU:
 
-## Setup on a new machine
+| Study | Run ID | Loss Configuration | Paper Top-1 | Our Best Top-1 | Last-20 Mean | Teacher Gap Closed |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **Reference** | `teacher` | Frozen Pretrained `ResNet32×4` | `79.42%` | **`79.42%`** | `79.42%` | `100.0%` |
+| **1. Reproduction** | `ce` | Hard-Label Cross-Entropy Only | `72.50%` | **`72.89%`** | `72.51%` | `0.0%` |
+| **1. Reproduction** | `kd_T4` | Classical KD (`1.0·CE + 1.0·KD`, $T=4$) | `73.63%` | **`74.57%`** | `74.30%` | `+25.7%` |
+| **1. Reproduction** | **`dkd_T4`** | **Decoupled KD ($\alpha=1, \beta=8, T=4$)** | **`76.32%`** | **`76.05%`** *(76.25% 2-seed)* | **`75.87%`** | **`+48.4%`** |
+| **2A. Ablation** | `tckd_only_T4` | Target Confidence Only ($\alpha=1, \beta=0$) | `68.63%` | **`68.73%`** | `68.16%` | `-63.7%` *(hurts!)* |
+| **2A. Ablation** | `nckd_only_T4` | Non-Target Dark Knowledge ($\alpha=0, \beta=8$) | `75.30%` | **`75.31%`** | `75.12%` | `+37.1%` |
+| **2B. Temp Sweep** | `kd_T1` | Classical KD ($T=1.0$ — Sharp) | — | **`72.95%`** | `72.41%` | `+0.9%` *(collapses!)* |
+| **2B. Temp Sweep** | `kd_T10` | Classical KD ($T=10.0$ — High-$T$) | — | **`74.45%`** | `74.22%` | `+23.9%` |
+| **2B. Temp Sweep** | `dkd_T1` | Decoupled KD ($T=1.0$ — Sharp) | — | **`75.61%`** | `75.39%` | `+41.7%` |
+| **2B. Temp Sweep** | `dkd_T10` | Decoupled KD ($T=10.0$ — High-$T$) | — | **`76.28%`** | `76.04%` | `+51.9%` |
+| **2B. Temp Sweep** | `dkd_T100` | Decoupled KD ($T=100.0$ — Asymptotic MSE) | — | **`75.84%`** | `75.70%` | `+45.2%` |
 
-Python 3.11 or newer is required. This project was built with Python 3.13.
-A different 3.11+ version still gets the same pinned packages. The script
-prints a note when the version is not 3.13.
+---
 
-From the repository root:
+## Quick Start: Setup & Launch Deployed Web App (`app.py`)
+
+Requires **Python 3.11+**. From the repository root:
 
 ```bash
+# 1. Create .venv, install pinned requirements.txt, and download/verify CIFAR-100 (MD5 checked)
 python3 scripts/setup_project.py
+
+# 2. Launch the interactive Streamlit inference & dark-knowledge web application
+.venv/bin/streamlit run app.py
 ```
 
-Use the system Python for that command. The virtual environment does not
-exist yet, so this script uses only the Python standard library.
+Open **`http://localhost:8501`** in your browser.
+- **Works 100% offline** once `data/cifar-100-python/` and `checkpoints/` are present on disk.
+- **Export 10,000 real `.png` test images for live file-upload testing:**
+  ```bash
+  .venv/bin/python scripts/export_test_images.py
+  ```
+  Exports lossless unseen test PNGs organized by class into `demo_test_images/by_class/<class>/` plus 30 quick-access samples in `demo_test_images/00_quick_demo_picks/`.
 
-The script is safe to run again. An existing `.venv` is reused, a matching
-archive is not downloaded twice, and an existing extraction is left in place.
+---
 
-### 1. Virtual environment
+## Reproducing Training & Evaluation
 
-The script creates `.venv` inside this project and installs the pinned
-packages from `requirements.txt`:
+### Option A — Self-Contained Linear Notebook (Recommended)
+Open [`notebooks/05_dkd_from_scratch.ipynb`](notebooks/05_dkd_from_scratch.ipynb) locally (`FAST_DEV_RUN = True` for a 2-epoch smoke check) or on Google Colab GPU (`FAST_DEV_RUN = False` for full 240-epoch training with Google Drive checkpoint auto-resume). Zero helper imports from `src/` are used so every tensor operation is transparent top-to-bottom.
 
-| Package | Version |
-| --- | --- |
-| numpy | 2.5.4 |
-| matplotlib | 3.11.2 |
-| pillow | 13.0.0 |
-| notebook | 7.6.3 |
-| ipykernel | 7.4.0 |
+### Option B — Modular CLI Scripts
+```bash
+# Smoke test (2 epochs, 8 batches)
+.venv/bin/python scripts/train.py --mode dkd --smoke-test --output-dir outputs/smoke_dkd
 
-On macOS and Linux the interpreter is `.venv/bin/python`. On Windows it is
-`.venv\Scripts\python.exe`.
+# Full 240-epoch DKD reproduction
+.venv/bin/python scripts/train.py --config configs/cifar100_resnet32x4_resnet8x4.yaml --mode dkd --output-dir outputs/dkd_T4
 
-### 2. CIFAR-100 download
+# Evaluate any saved Student checkpoint on the 10,000-image CIFAR-100 test set
+.venv/bin/python scripts/eval.py --model resnet8x4 --checkpoint outputs_final/dkd_T4/ckpt_best.pth
 
-The script downloads the official Python archive, about 161 MB, and checks
-the MD5 `eb9058c3a382ffc7106e4002c42a8d85`. A file that does not match is
-deleted and the next address is tried.
-
-1. Hugging Face copy, used first because the Toronto host is often very slow:
-   `https://huggingface.co/datasets/nakroy/cifar100-python/resolve/main/cifar-100-python.tar.gz`
-2. University of Toronto original:
-   `https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz`
-
-The archive is saved as `data/cifar-100-python.tar.gz` and extracted so
-these three files exist:
-
-```text
-data/cifar-100-python/train
-data/cifar-100-python/test
-data/cifar-100-python/meta
+# Run unit tests (verifies Eq. 1 exact KD == TCKD + (1 - p_t^T)*NCKD identity, shapes, and NaN safety)
+.venv/bin/python -m pytest
 ```
 
-The notebooks run the same download themselves: each one calls
-`ensure_cifar100()` from `scripts/setup_project.py` near the top, which
-downloads and extracts CIFAR-100 the first time and does nothing after that.
-So after a fresh clone you can open any notebook directly, as long as the
-packages from `requirements.txt` are installed.
+---
 
-The download uses the `certifi` certificate bundle when it is installed, and
-the macOS system bundle otherwise. That avoids the
-`CERTIFICATE_VERIFY_FAILED` error that python.org builds of Python give on
-macOS before "Install Certificates.command" has been run.
+## Deploying to Hugging Face Spaces (1-Command Bundle)
 
-On Google Colab, `notebooks/03_colab_training_and_logging.ipynb` clones this
-repository from GitHub. The repository is private, so add a GitHub token with
-read access as the Colab secret `GITHUB_TOKEN`, or paste it when the notebook
-asks. Leaving the prompt empty falls back to uploading `dkd_colab_bundle.zip`.
-
-`train` has 50,000 images. `test` has 10,000 images. There is no validation
-file. Each image is 32×32 RGB, stored as one row of 3,072 bytes: the red
-plane, then the green plane, then the blue plane.
-
-## Open the preprocessing notebook
-
-After setup, from the repository root:
+To stage a clean, lightweight Hugging Face Space directory (`hf_space_bundle/` with optimizer states stripped so all 10 checkpoints total only `~47 MB`):
 
 ```bash
-.venv/bin/python -m notebook notebooks/01_cifar100_pipeline.ipynb
+.venv/bin/python scripts/prepare_hf_space.py
 ```
 
-On Windows:
+Then push `hf_space_bundle/` to a free Streamlit Space on Hugging Face (`git init && git add . && git commit -m "Deploy frozen DKD CIFAR-100 app" && git push`). On first cloud startup, `app.py` automatically downloads CIFAR-100 and the pretrained Teacher checkpoint.
 
-```bash
-.venv\Scripts\python.exe -m notebook notebooks/01_cifar100_pipeline.ipynb
-```
+---
 
-`notebooks/01_cifar100_pipeline.ipynb` is the mid-evaluation notebook. It
-loads the real CIFAR-100 files through `src/data/cifar100.py` and applies
-the CIFAR training recipe:
+## Explicit Code & Artifact Attribution
 
-- training view: pad 4 black pixels, random 32×32 crop, left-right flip with probability 0.5, divide by 255, then the recipe mean and standard deviation
-- evaluation view: divide by 255, then the same mean and standard deviation
+- **Implemented from scratch by our team:** Raw CIFAR-100 binary loader & NumPy/PyTorch transforms (`notebooks/05_dkd_from_scratch.ipynb`, `src/data/cifar100.py`), `BasicBlock` / `ResNet8×4` / `ResNet32×4` models (`src/models/resnet.py`), `kd_loss` / `tckd_per_sample` / `nckd_per_sample` / `dkd_loss` (`src/losses/dkd.py`), 240-epoch training & resume loop, Streamlit deployment app (`app.py`), and test/figure scripts.
+- **Adapted recipes:** Hyperparameters (`lr=0.05`, `[150, 180, 210]` decay, `batch_size=64`, `warmup=20`, $\alpha=1, \beta=8, T=4$) and `-1000.0` target-logit masking convention follow Zhao et al. (CVPR 2022) and `megvii-research/mdistiller` configuration files for exact benchmark parity.
+- **Directly reused artifacts:** Pretrained frozen Teacher checkpoint (`resnet32x4_vanilla/ckpt_epoch_240.pth`, `79.42%`) from `megvii-research/mdistiller` releases and the official CIFAR-100 dataset (Krizhevsky, 2009). All 10 Student checkpoints in `outputs_final/` were trained from random initialization by our team.
 
-The mean is `(0.5071, 0.4867, 0.4408)`. The standard deviation is
-`(0.2675, 0.2565, 0.2761)`. Those constants are copied from the DKD
-CIFAR-100 recipe. The loader and the preprocessing functions are written
-in this repository. The notebook already contains saved cell outputs from
-a local run.
+---
 
-`notebooks/00_eda_cifar100_full.ipynb` is the longer exploratory analysis
-used to write the report. The required preprocessing notebook is
-`01_cifar100_pipeline.ipynb`.
-
-## Report
-
-| File | Role |
-| --- | --- |
-| `docs/mid_eval/mid_evaluation_report.tex` | LaTeX source |
-| `docs/mid_eval/figures/` | The nine PNG figures the LaTeX file includes |
-| `docs/mid_eval/Mid_Evaluation_Report.pdf` | A local PDF copy |
-
-To compile the LaTeX, put `mid_evaluation_report.tex` in the project and
-the nine PNGs in a folder named `figures` next to it. The figure list is
-`class_balance.png`, `superclass_counts.png`, `raw_examples.png`,
-`superclass_vehicles.png`, `brightness.png`, `channel_histograms.png`,
-`pca_superclasses.png`, `pca_vehicles.png`, and `preprocess_views.png`.
-Compile with pdfLaTeX.
-
-## Layout
+## Repository Structure
 
 ```text
-configs/       CIFAR-100 training recipe for ResNet32x4 to ResNet8x4
-data/          CIFAR-100 Python batches, created by setup_project.py
-docs/mid_eval/ report and figures
-notebooks/     EDA notebook and the preprocessing notebook
-scripts/       setup_project.py and the EDA figure script
-src/data/      CIFAR-100 loader and preprocessing
-requirements.txt
+app.py                         Standalone Streamlit live inference & dark-knowledge web app
+configs/                       YAML training configuration matching CVPR 2022 CIFAR-100 protocol
+checkpoints/                   Pretrained frozen ResNet32x4 teacher checkpoint (79.42%)
+docs/
+  mid_eval/                    Deliverable 2 LaTeX source & 9 CIFAR-100 EDA figures
+  final_report/                Deliverable 3 12-section LaTeX source, figures, & compiled PDF
+notebooks/
+  00_eda_cifar100_full.ipynb   Full CIFAR-100 exploratory data analysis
+  01_cifar100_pipeline.ipynb   Preprocessing & augmentation verification
+  05_dkd_from_scratch.ipynb    Complete linear from-scratch DKD implementation & 10-run suite
+outputs_final/                 All 10 trained 240-epoch Student checkpoints & history.json logs
+scripts/                       Setup, CLI train/eval, test PNG exporter, & HF Space packager
+src/                           Modular data, ResNet, DKD loss, and trainer package
+tests/                         Pytest suite verifying algebraic KD decomposition & tensor shapes
+requirements.txt               Pinned Python environment dependencies
 ```

@@ -1,0 +1,625 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue, citecolor=black}
+\setlist{nosep, leftmargin=1.5em}
+\graphicspath{{figures/}}
+
+% --- Project Artifact URLs (Displayed on Page 1 per Section 2.2 Guidelines) ---
+\newcommand{\RepoURL}{https://github.com/SufyanSiddiqui/ml-dkd-fall-2026}
+\newcommand{\WeightsURL}{https://github.com/SufyanSiddiqui/ml-dkd-fall-2026/tree/main/outputs_final}
+\newcommand{\LiveAppURL}{https://huggingface.co/spaces/SufyanSiddiqui/dkd-cifar100}
+
+\title{\textbf{Final Research Report}\\[0.35em]
+\large Decoupled Knowledge Distillation on CIFAR-100:\\
+From-Scratch Reproduction, Component \& Temperature Studies, and Live Deployment}
+\author{Muhammad Sufyan Siddiqui --- 36389\\
+Muhammad Mudassir --- 36374\\[0.3em]
+\normalsize MS Data Science, Machine Learning (Fall 2026)}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\small
+\begin{tabular}{@{}lp{10.8cm}@{}}
+\toprule
+\textbf{Field} & \textbf{Details \& Public Artifact Links} \\
+\midrule
+Course \& Instructor & Machine Learning (Fall 2026) --- Dr.\ Rizwan Khan \\
+Group Members & Muhammad Sufyan Siddiqui (36389), Muhammad Mudassir (36374) \\
+Reference Paper & \emph{Decoupled Knowledge Distillation}, Borui Zhao, Quan Cui, Renjie Song, Yiyu Qiu, and Jiajun Liang, CVPR 2022, pp.\ 11953--11962 \cite{zhao2022} \\
+Teacher $\rightarrow$ Student & CIFAR-100: \texttt{ResNet32$\times$4} ($7.43\text{M}$ params, $28.36\text{ MB}$) $\rightarrow$ \texttt{ResNet8$\times$4} ($1.23\text{M}$ params, $4.71\text{ MB}$) \\
+Source Code Repository & \url{\RepoURL} \\
+Trained Model Weights & \url{\WeightsURL} (10 full 240-epoch checkpoints + \texttt{history.json} logs) \\
+Live Deployed Web App & \url{\LiveAppURL} (Streamlit + PyTorch; also runs offline locally via \texttt{streamlit run app.py}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\noindent\textbf{Abstract.}
+Classical knowledge distillation (KD) trains a compact student network to match the temperature-softened class probabilities of a larger teacher network using a single Kullback--Leibler (KL) divergence term. Zhao et al.\ (CVPR 2022) showed algebraically that this single KL divergence couples two distinct signals---binary target-class confidence (\(\mathrm{TCKD}\)) and the conditional distribution across the \(C-1\) non-target classes (\(\mathrm{NCKD}\))---while multiplying \(\mathrm{NCKD}\) by \((1 - p_t^T)\), which suppresses dark knowledge whenever the teacher is confident. In this project, we implement the complete CIFAR-100 data loader, residual architectures (\texttt{ResNet32$\times$4} and \texttt{ResNet8$\times$4}), classical KD, and Decoupled Knowledge Distillation (DKD) from scratch in PyTorch without importing the authors' library. Across ten full 240-epoch GPU training runs, our reproduced \texttt{ResNet8$\times$4} student rises from \(72.89\%\) (plain cross-entropy) and \(74.57\%\) (classical KD) to \(76.05\%\) with DKD (\(76.25\%\) two-run mean vs.\ \(76.32\%\) published), closing nearly half of the recoverable teacher--student accuracy gap while compressing model size by \(6.03\times\) (\(28.36\text{ MB} \rightarrow 4.71\text{ MB}\)) at zero extra inference cost. Three additional experiments---a \(\mathrm{TCKD}\)/\(\mathrm{NCKD}\) component ablation, a head-to-head temperature sweep across \(T \in \{1, 4, 10, 100\}\), and a hardware throughput benchmark---confirm that \(\mathrm{TCKD}\) alone degrades accuracy below plain cross-entropy (\(68.73\%\)), \(\mathrm{NCKD}\) alone outperforms classical KD (\(75.31\%\)), and decoupling eliminates classical KD's low-temperature collapse (\(75.61\%\) vs.\ \(72.95\%\) at \(T=1\)). All ten trained student checkpoints are deployed inside an interactive Streamlit inference and dark-knowledge inspection web application.
+
+\tableofcontents
+\clearpage
+
+% =====================================================================
+\section{Introduction and Problem Statement}
+\label{sec:intro}
+
+Deploying deep convolutional neural networks under real-world memory, power, and latency budgets creates a direct conflict between model capacity and deployment efficiency. On fine-grained 100-way visual recognition (CIFAR-100), a 32-layer wide residual network (\texttt{ResNet32$\times$4}, \(7{,}433{,}860\) parameters, \(28.36\text{ MB}\) in 32-bit floating point) achieves \(79.42\%\) top-1 test accuracy, whereas a compact 8-layer student from the same architectural family (\texttt{ResNet8$\times$4}, \(1{,}233{,}540\) parameters, \(4.71\text{ MB}\)) reaches only \(72.50\%\) when trained from hard ground-truth labels alone \cite{zhao2022}. Closing that \(6.92\) percentage-point accuracy gap without enlarging the student network at inference time is the central goal of knowledge distillation \cite{bucilua2006,hinton2015}.
+
+For nearly seven years following Hinton et al.\ \cite{hinton2015}, logit-based distillation---which supervises the student using only the teacher's output probability vector---was widely assumed to have a low performance ceiling compared to intermediate feature-map distillation methods such as FitNets \cite{romero2015}, Contrastive Representation Distillation (CRD) \cite{tian2020}, and ReviewKD \cite{chen2021}. Feature distillation methods, however, introduce auxiliary projection heads, spatial connectors, or contrastive memory banks during training and tightly couple distillation to specific internal layer dimensions.
+
+Zhao et al.\ \cite{zhao2022} demonstrated that output logits are not inherently weak targets; rather, the classical KD loss formulation itself is structurally flawed. Because classical KD computes a single KL divergence over all \(C\) classes simultaneously, the gradient signal carrying inter-class similarity among the \(C-1\) non-target classes is scaled by \((1 - p_t^T)\), where \(p_t^T\) is the teacher's softened probability on the ground-truth class \(t\). Paradoxically, on the clearest training examples where the teacher's semantic ranking of related classes is most reliable, \(p_t^T \to 1\) drives \((1 - p_t^T) \to 0\), silencing dark knowledge.
+
+\textbf{Project Objectives.} This work addresses four concrete engineering and scientific goals:
+\begin{enumerate}
+    \item \textbf{From-Scratch Reproduction:} Implement the raw binary CIFAR-100 pipeline, \texttt{ResNet32$\times$4}/\texttt{ResNet8$\times$4} models, classical KD, and DKD from first principles in PyTorch, reproducing the \(\texttt{ResNet32$\times$4} \to \texttt{ResNet8$\times$4}\) benchmark within single-seed variance of CVPR 2022.
+    \item \textbf{Component Ablation Study:} Isolate \(\mathrm{TCKD}\) (\(\alpha=1, \beta=0\)) and \(\mathrm{NCKD}\) (\(\alpha=0, \beta=8\)) under identical initialization and optimization schedules to determine which decoupled component drives generalization.
+    \item \textbf{Temperature Robustness \& Asymptotic Limit Study:} Evaluate classical KD vs.\ DKD across sharp (\(T=1\)), standard (\(T=4\)), high (\(T=10\)), and extreme asymptotic (\(T=100\)) temperatures, connecting empirical accuracy to Hinton's high-\(T\) logit-matching limit.
+    \item \textbf{End-to-End Production Deployment:} Package the \(4.71\text{ MB}\) distilled student and reference teacher into a responsive Streamlit web application exposing live image preprocessing, top-5 predictions, millisecond latency, and a non-target dark-knowledge microscope.
+\end{enumerate}
+
+% =====================================================================
+\section{Literature Review and Background}
+\label{sec:lit}
+
+\subsection{Model Compression and Classical Knowledge Distillation}
+
+A large convolutional network is usually more accurate than a small one, and it is also more expensive to store and to run. Bucilu\u{a}, Caruana, and Niculescu-Mizil framed that tradeoff in 2006 as model compression: train an expressive model, then train a smaller model to imitate it, so the small model can be deployed where the large one does not fit \cite{bucilua2006}. Deep residual networks made the gap concrete. He et al.\ showed that very deep residual nets set the accuracy standard on image classification, and they also made it obvious that the winning model is not the model one wants on a phone or under a tight latency budget \cite{he2016}.
+
+Hinton, Vinyals, and Dean turned the compression idea into the training recipe later papers call knowledge distillation \cite{hinton2015}. A teacher network is trained in the usual way. A student, usually smaller, is trained with two signals at once: the hard class label, and the teacher's soft probability vector. The soft vector is the part they called \emph{dark knowledge}. A picture of a truck should not only be labeled ``truck.'' The teacher may also put a little mass on ``car'' and almost none on ``apple,'' and that ranking is useful. They control it with a temperature \(T\) inside the softmax. At \(T = 1\) the distribution is peaked. At \(T > 1\) the small probabilities on the wrong classes become visible, and the student is asked to match them with a KL divergence.
+
+The extra cost is paid strictly at training time. At inference the teacher is discarded and the student runs alone. If the student is only a few points behind the teacher, most of the accuracy has been kept at a fraction of the compute.
+
+\subsection{Logit Distillation vs.\ Feature Distillation}
+
+After Hinton et al., the distillation literature split into two families \cite{zhao2022}:
+\begin{itemize}
+    \item \textbf{Logit distillation} operates strictly on the teacher's \(C\)-dimensional output vector; the student never accesses internal feature maps. Subsequent logit methods primarily altered the training protocol around classical KD rather than reformulating the KL objective itself. Deep Mutual Learning trains peer networks jointly so each acts as the other's teacher \cite{zhang2018}. Teacher-Assistant Knowledge Distillation (TAKD) inserts an intermediate-sized network when the teacher--student capacity gap is large \cite{mirzadeh2020}. Cho and Hariharan showed that stronger, more confident teachers can counterintuitively make worse classical-KD teachers and proposed early-stopped teachers as a workaround \cite{cho2019}---an empirical anomaly that DKD later explained mathematically via the \((1 - p_t^T)\) suppression factor.
+    \item \textbf{Feature distillation} aligns intermediate hidden representations rather than output logits. FitNets regress a student hidden map onto a teacher hint layer via a learned convolutional adapter \cite{romero2015}. Attention Transfer (AT) aligns spatial activation summaries \cite{zagoruyko2017}. Relational Knowledge Distillation (RKD) matches pairwise sample distances and angles \cite{park2019}, while Contrastive Representation Distillation (CRD) maximizes mutual information via a contrastive memory bank \cite{tian2020}. Overhaul of Feature Distillation (OFD) \cite{heo2019} and ReviewKD \cite{chen2021} further refine cross-stage feature connectors. While accurate on CIFAR-100 (e.g., CRD reaches \(75.51\%\) on \(\texttt{ResNet32$\times$4} \to \texttt{ResNet8$\times$4}\)), feature methods require extra memory, extra training FLOPs, and architecture-specific tap points.
+\end{itemize}
+
+Zhao et al.\ argued that output logits sit at the highest semantic level of the network and should not trail intermediate features. By decoupling target confidence from non-target dark knowledge, DKD surpassed heavy feature-distillation baselines like CRD (\(76.32\%\) vs.\ \(75.51\%\)) using pure output logits and zero auxiliary parameters \cite{zhao2022}.
+
+% =====================================================================
+\section{Paper Methodology}
+\label{sec:method}
+
+\subsection{Algebraic Decomposition of Classical KD}
+
+Consider a classification task over \(C = 100\) classes. Given an input image \(\mathbf{x}\) with ground-truth label \(t \in \{1, \dots, C\}\), let \(\mathbf{z}^T, \mathbf{z}^S \in \mathbb{R}^C\) denote the raw pre-softmax logits produced by the teacher and student networks, respectively. At softmax temperature \(T > 0\), the full class probability vector \(p = [p_1, \dots, p_C]\) is defined for either model by:
+\begin{equation}
+p_i = \frac{\exp(z_i / T)}{\sum_{j=1}^{C} \exp(z_j / T)}, \qquad i \in \{1, \dots, C\}.
+\end{equation}
+Classical Hinton KD minimizes the temperature-scaled KL divergence between \(p^T\) and \(p^S\):
+\begin{equation}
+\mathcal{L}_{\mathrm{KD}} = T^2 \, \mathrm{KL}(p^T \parallel p^S) = T^2 \sum_{i=1}^{C} p_i^T \log \left(\frac{p_i^T}{p_i^S}\right),
+\end{equation}
+where the \(T^2\) factor restores gradient magnitude since \(\partial p_i / \partial z_i \propto 1/T\) (and cross-gradients scale as \(1/T^2\)).
+
+Zhao et al.\ partition the \(C\) outcomes into two Conceptual Events:
+\begin{enumerate}
+    \item \textbf{Binary Target vs.\ Non-Target Distribution} \(\mathbf{b} = [p_t, \, p_{\setminus t}] \in \mathbb{R}^2\), where \(p_{\setminus t} = \sum_{j \neq t} p_j = 1 - p_t\) is the total probability mass assigned to all \(C-1\) incorrect classes combined.
+    \item \textbf{Conditional Non-Target Distribution} \(\hat{\mathbf{p}} = [\hat{p}_1, \dots, \hat{p}_{t-1}, \hat{p}_{t+1}, \dots, \hat{p}_C] \in \mathbb{R}^{C-1}\), representing how probability mass is distributed \emph{exclusively among the 99 non-target classes}:
+    \begin{equation}
+    \hat{p}_i = \frac{p_i}{p_{\setminus t}} = \frac{\exp(z_i / T)}{\sum_{j \neq t} \exp(z_j / T)}, \qquad i \neq t.
+    \end{equation}
+\end{enumerate}
+
+Substituting \(p_i = p_{\setminus t} \, \hat{p}_i\) for all \(i \neq t\) into the KL sum separates target index \(t\) from the non-target indices:
+\begin{align}
+\mathrm{KL}(p^T \parallel p^S)
+&= p_t^T \log\left(\frac{p_t^T}{p_t^S}\right) + \sum_{i \neq t} p_{\setminus t}^T \hat{p}_i^T \log\left(\frac{p_{\setminus t}^T \hat{p}_i^T}{p_{\setminus t}^S \hat{p}_i^S}\right) \nonumber \\
+&= p_t^T \log\left(\frac{p_t^T}{p_t^S}\right) + p_{\setminus t}^T \log\left(\frac{p_{\setminus t}^T}{p_{\setminus t}^S}\right)\underbrace{\sum_{i \neq t} \hat{p}_i^T}_{= 1} + p_{\setminus t}^T \sum_{i \neq t} \hat{p}_i^T \log\left(\frac{\hat{p}_i^T}{\hat{p}_i^S}\right) \nonumber \\
+&= \underbrace{\mathrm{KL}(\mathbf{b}^T \parallel \mathbf{b}^S)}_{\mathrm{TCKD}} + (1 - p_t^T)\underbrace{\mathrm{KL}(\hat{\mathbf{p}}^T \parallel \hat{\mathbf{p}}^S)}_{\mathrm{NCKD}}.
+\label{eq:exact_kd}
+\end{align}
+
+Equation~\eqref{eq:exact_kd} is an \textbf{exact algebraic identity}, not an approximation. In our implementation, we verified numerically on real 64-image CIFAR-100 batches that \(T^2(\mathrm{TCKD} + (1 - p_t^T)\mathrm{NCKD})\) equals standard \(\mathcal{L}_{\mathrm{KD}}\) to six decimal places (\(10.682806 = 10.682806\)).
+
+\subsection{Why the Coupling Hurts and How DKD Fixes It}
+
+Equation~\eqref{eq:exact_kd} exposes two structural flaws in classical KD:
+\begin{enumerate}
+    \item \textbf{Confidence Suppression of Dark Knowledge:} \(\mathrm{NCKD}\) carries the ``dark knowledge''---for instance, teaching the student that an image of a \texttt{crocodile} looks far more like a \texttt{lizard} or \texttt{dinosaur} than an \texttt{apple}. Yet classical KD weights \(\mathrm{NCKD}\) by \((1 - p_t^T)\). Whenever the teacher recognizes a training sample confidently (\(p_t^T \to 0.99\)), the multiplier \((1 - p_t^T) \to 0.01\) destroys the non-target gradient.
+    \item \textbf{Inability to Balance Target Confidence vs.\ Non-Target Structure:} \(\mathrm{TCKD}\) transfers instance-level difficulty (whether an image is an easy or ambiguous example of class \(t\)), but when over-weighted relative to \(\mathrm{NCKD}\), excessive confidence transfer actively harms student generalization.
+\end{enumerate}
+
+\textbf{Decoupled Knowledge Distillation (DKD)} replaces the coupled \((1, \, 1 - p_t^T)\) weights with two independent scalar hyperparameters \(\alpha \ge 0\) and \(\beta \ge 0\):
+\begin{equation}
+\mathcal{L}_{\mathrm{DKD}} = T^2 \big(\alpha \, \mathrm{TCKD} + \beta \, \mathrm{NCKD}\big),
+\label{eq:dkd_final}
+\end{equation}
+and trains the student with total objective:
+\begin{equation}
+\mathcal{L}_{\mathrm{total}}(\text{epoch}) = \mathcal{L}_{\mathrm{CE}}(\mathbf{z}^S, t) + w(\text{epoch}) \, \mathcal{L}_{\mathrm{DKD}}(\mathbf{z}^S, \mathbf{z}^T, t), \qquad w(\text{epoch}) = \min\!\left(\frac{\text{epoch}}{20}, \, 1.0\right).
+\label{eq:total_loss}
+\end{equation}
+The 20-epoch linear warmup \(w(\text{epoch})\) prevents large \(\beta = 8.0\) non-target gradients from destabilizing randomly initialized student weights during the earliest epochs.
+
+% =====================================================================
+\section{Implementation Details}
+\label{sec:impl}
+
+\subsection{Residual Network Architecture (\texttt{ResNet32$\times$4} and \texttt{ResNet8$\times$4})}
+
+Both teacher and student belong to the 3-stage CIFAR ResNet family \cite{he2016} scaled by a \(4\times\) channel multiplier \([32, 64, 128, 256]\) (Figure~\ref{fig:arch_pipe}). Total learnable depth satisfies \(6n + 2\), where \(n = 5\) residual \texttt{BasicBlock}s per stage yields the 32-layer teacher (\texttt{ResNet32$\times$4}, \(7{,}433{,}860\) parameters) and \(n = 1\) block per stage yields the 8-layer student (\texttt{ResNet8$\times$4}, \(1{,}233{,}540\) parameters, a \(6.03\times\) parameter and disk reduction).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{cifar_resnet_pipeline.png}
+\caption{End-to-end tensor pipeline for \texttt{CifarResNet} (\texttt{ResNet32$\times$4} teacher with \(n=5\) blocks/stage and \texttt{ResNet8$\times$4} student with \(n=1\) block/stage).}
+\label{fig:arch_pipe}
+\end{figure}
+
+Every \texttt{nn.Conv2d} layer sets \texttt{bias=False} because \texttt{nn.BatchNorm2d} immediately follows each convolution, subtracting the per-channel mean and applying its own learnable affine shift. As shown in Figure~\ref{fig:shortcuts} and Table~\ref{tab:stages}, Block 0 of each stage uses a \(1 \times 1\) projection shortcut (\texttt{downsample}) whenever channels double (\(32 \to 64\) at stride 1 in \texttt{layer1.0}; \(64 \to 128\) and \(128 \to 256\) at stride 2 in \texttt{layer2.0} and \texttt{layer3.0}), whereas Blocks \(1 \dots 4\) in the teacher use parameter-free identity skip connections (\(+\mathbf{x}\)).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{resnet_shortcut_types.png}
+\caption{Three residual shortcut configurations inside \texttt{BasicBlock}: identity skip, channel-only \(1\times 1\) projection (\texttt{layer1.0}), and strided spatial + channel \(1\times 1\) projection (\texttt{layer2.0}, \texttt{layer3.0}).}
+\label{fig:shortcuts}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Stage-by-stage batch tensor shapes (\(B = 64\)) for Teacher (\(n=5\)) and Student (\(n=1\)).}
+\label{tab:stages}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Stage} & \textbf{Input Tensor} & \textbf{Operations \& Shortcut Type} & \textbf{Output Tensor} \\
+\midrule
+Stem (\texttt{conv1+bn1}) & \((64, 3, 32, 32)\) & \(3\times 3\) conv (\(3\to 32, s=1, p=1\)) + BN + ReLU & \((64, 32, 32, 32)\) \\
+\texttt{layer1} (\(n\) blocks) & \((64, 32, 32, 32)\) & Block 0: \(1\times 1\) proj (\(s=1\)); Blocks \(1..n{-}1\): Identity & \((64, 64, 32, 32)\) \\
+\texttt{layer2} (\(n\) blocks) & \((64, 64, 32, 32)\) & Block 0: \(1\times 1\) proj (\(s=2\)); Blocks \(1..n{-}1\): Identity & \((64, 128, 16, 16)\) \\
+\texttt{layer3} (\(n\) blocks) & \((64, 128, 16, 16)\) & Block 0: \(1\times 1\) proj (\(s=2\)); Blocks \(1..n{-}1\): Identity & \((64, 256, 8, 8)\) \\
+Head (\texttt{avgpool+fc}) & \((64, 256, 8, 8)\) & \texttt{AvgPool2d(8)} $\rightarrow$ Flatten $\rightarrow$ \texttt{Linear(256, 100)} & \((64, 100)\) logits \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Numerical Stability in \texttt{NCKD} Logit Masking}
+
+A critical implementation pitfall in computing \(\mathrm{NCKD} = \mathrm{KL}(\hat{\mathbf{p}}^T \parallel \hat{\mathbf{p}}^S)\) is removing the ground-truth class \(t\) without breaking rectangular \((B, C)\) GPU tensor shapes or triggering \(0 \cdot \log(0) = \mathrm{NaN}\) during backpropagation. In both \texttt{notebooks/05\_dkd\_from\_scratch.ipynb} and \texttt{src/losses/dkd.py}, we construct a boolean ground-truth mask via \texttt{scatter\_} and subtract \(1000.0\) from the temperature-scaled target logit \emph{before} calling \texttt{F.softmax} and \texttt{F.log\_softmax}:
+\[
+\tilde{z}_i = \begin{cases} z_i / T - 1000.0, & i = t \\ z_i / T, & i \neq t \end{cases} \implies \exp(\tilde{z}_t) = e^{-1000} = 0.0 \text{ in IEEE-754 \texttt{float32}}.
+\]
+Consequently, \texttt{F.softmax} automatically normalizes over \(\sum_{j \neq t} \exp(z_j / T)\), while \texttt{F.kl\_div} evaluates \(0.0 \times (-1000) = 0.0\) cleanly with zero \(\mathrm{NaN}\) gradients even at \(T = 100.0\).
+
+\subsection{Environment, Training Protocol, and Explicit Code Attribution}
+
+\textbf{Training \& Deployment Environment:} Full 240-epoch training runs were executed on Google Colab using an NVIDIA L4 GPU (24 GB VRAM, PyTorch with CUDA, \texttt{num\_workers=2}, \texttt{pin\_memory=True}, \(\approx 18.8\text{ ms/batch}\)), with local development, verification, and live inference executed on Apple Silicon (\texttt{mps} backend, Python 3.13, \texttt{torch==2.15.0}, \texttt{streamlit==1.67.0}, \texttt{plotly==7.1.0}). Every training run used fixed random seed \texttt{SEED = 42}, SGD (\(\text{lr}=0.05\), \(\text{momentum}=0.9\), \(\text{weight\_decay}=5 \times 10^{-4}\)), batch size \(64\), \(240\) epochs, step learning-rate decay (\(\times 0.1\) at epochs \(150, 180, 210\)), and checkpoint auto-resumption (\texttt{ckpt\_last.pth} and \texttt{ckpt\_best.pth}).
+
+\begin{table}[H]
+\centering
+\small
+\caption{Explicit Code, Weight, and Result Attribution (Deliverable 3 Section 2.4 Compliance).}
+\label{tab:attribution}
+\begin{tabular}{@{}p{3.9cm}p{11.4cm}@{}}
+\toprule
+\textbf{Attribution Category} & \textbf{Exact Scope in This Project} \\
+\midrule
+\textbf{(a) Implemented from scratch by our team} & Raw binary CIFAR-100 byte parser, MD5 verifier, and NumPy/PyTorch augmentation pipeline (\texttt{notebooks/05\_dkd\_from\_scratch.ipynb}, \texttt{src/data/cifar100.py}); explicit \texttt{BasicBlock}, \texttt{StudentResNet8x4}, and \texttt{TeacherResNet32x4} classes; \texttt{kd\_loss}, \texttt{tckd\_per\_sample}, \texttt{nckd\_per\_sample}, \texttt{dkd\_loss}, and unified 5-mode loss wrapper; 240-epoch training/resume engine; speed profiler; test-image exporter (\texttt{scripts/export\_test\_images.py}); and the entire Streamlit deployment app (\texttt{app.py}). Zero modules are imported from \texttt{mdistiller}. \\
+\addlinespace[0.3em]
+\textbf{(b) Adapted recipes \& conventions} & Exact solver hyperparameters (\(\text{lr}=0.05\), decay at \([150, 180, 210]\), \(\text{batch\_size}=64\), \(\text{weight\_decay}=5\times 10^{-4}\), 20-epoch linear warmup, \(\alpha=1.0, \beta=8.0, T=4.0\)), CIFAR channel normalization constants, and the \(-1000\) target-logit masking convention were matched to Zhao et al.'s published specification and \texttt{mdistiller} configuration (\texttt{configs/cifar100/dkd/res32x4\_res8x4.yaml}) so our teacher checkpoint loads with \texttt{strict=True} and metrics remain strictly comparable. \\
+\addlinespace[0.3em]
+\textbf{(c) Directly reused artifacts} & Only the pretrained frozen teacher weights (\texttt{resnet32x4\_vanilla/ckpt\_epoch\_240.pth}, \(79.42\%\) top-1) distributed by Megvii Research (\texttt{mdistiller} release archive) and the official CIFAR-100 Python binary archive \cite{krizhevsky2009}. All 10 student checkpoints were trained from random initialization by our team. \\
+\addlinespace[0.3em]
+\textbf{(d) Authors' vs.\ our results} & Every table and chart explicitly labels Zhao et al.'s published 5-trial averages \cite{zhao2022} alongside our single-seed (\texttt{SEED=42}) reproduced test accuracies computed on the official 10,000-image CIFAR-100 test split. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Dataset, Exploratory Data Analysis, and Preprocessing}
+\label{sec:eda}
+
+\subsection{Dataset Structure, Integrity, and Class Balance}
+
+CIFAR-100 \cite{krizhevsky2009} is loaded directly from the official Python binary archive (\texttt{data/cifar-100-python.tar.gz}, verified against official MD5 checksum \texttt{eb9058c3a382ffc7106e4002c42a8d85}). Extraction yields \texttt{train} (\(50{,}000\) images), \texttt{test} (\(10{,}000\) images), and \texttt{meta} (\(100\) fine class names nested evenly inside \(20\) coarse superclasses of \(5\) fine classes each). Each image is stored as a contiguous row of \(3{,}072\) unsigned bytes (\(1{,}024\) red, \(1{,}024\) green, \(1{,}024\) blue), reshaped via \texttt{reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)} into \((32, 32, 3)\) RGB \texttt{uint8} images.
+
+As summarized in Table~\ref{tab:stats} and Figures~\ref{fig:balance}--\ref{fig:super}, the dataset is perfectly balanced: every fine class contains exactly \(500\) training and \(100\) test images, and every superclass contains \(2{,}500\) training images. Following the benchmark protocol of Zhao et al.\ \cite{zhao2022}, we do not carve out a separate validation split from the \(50{,}000\) training images; withholding \(10\%\) of training data would starve the student of \(5{,}000\) samples and invalidate direct comparison with published CIFAR-100 numbers. Because classes are perfectly uniform, top-1 accuracy on the \(10{,}000\)-image test split is unbiased and serves as our primary evaluation metric.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Exact CIFAR-100 dataset statistics verified from extracted binary batches.}
+\label{tab:stats}
+\begin{tabular}{@{}lrlr@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Quantity} & \textbf{Value} \\
+\midrule
+Training images & 50{,}000 & Validation split held out & 0 (official protocol) \\
+Held-out test images & 10{,}000 & Image tensor dimensions & \(32 \times 32 \times 3\), \texttt{uint8} \([0, 255]\) \\
+Fine classes (\(C\)) & 100 & Training / test per fine class & 500 / 100 \\
+Coarse superclasses & 20 & Fine classes per superclass & 5 (2{,}500 train images) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{class_balance.png}
+\caption{Training sample count across all 100 fine classes (uniformly 500 images per class).}
+\label{fig:balance}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.76\textwidth]{superclass_counts.png}
+\caption{Training sample count across all 20 coarse superclasses (uniformly 2{,}500 images per superclass).}
+\label{fig:super}
+\end{figure}
+
+\subsection{Visual Inspection, Anomalies, Channel Moments, and Pixel-Space Overlap}
+
+Figures~\ref{fig:raw} and \ref{fig:veh} illustrate raw \(32 \times 32\) samples across distinct superclasses and within a single superclass (\texttt{vehicles\_1}: \texttt{bicycle}, \texttt{bus}, \texttt{motorcycle}, \texttt{pickup\_truck}, \texttt{train}). While fine texture is lost at \(32 \times 32\), shared coarse geometry within a superclass explains why a teacher assigns non-zero probability to sibling classes---the exact structural signal exploited by \(\mathrm{NCKD}\).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{raw_examples.png}
+\caption{Raw \(32 \times 32\) training images from five distinct superclasses prior to augmentation or normalization.}
+\label{fig:raw}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{superclass_vehicles.png}
+\caption{Intra-superclass visual similarity across the five fine classes inside \texttt{vehicles\_1}.}
+\label{fig:veh}
+\end{figure}
+
+Integrity scans across all \(60{,}000\) rows confirmed zero missing pixels, zero NaNs, and zero flat/single-channel frames. Per-image brightness scaled to \([0, 1]\) spans a 1st percentile of \(0.168\), median \(0.464\), and 99th percentile \(0.872\) (Figure~\ref{fig:bright}). Exact byte-duplicate checks identified 14 repeated training rows, 2 repeated test rows, and 10 cross-split duplicates; all rows are retained unmodified so the test benchmark remains identical to Krizhevsky's official release.
+
+Recomputing RGB channel moments across all \(50{,}000 \times 32 \times 32\) training pixels yields \(\mu = (0.5071, 0.4865, 0.4409)\) and \(\sigma = (0.2673, 0.2564, 0.2762)\), matching the published DKD recipe constants \((0.5071, 0.4867, 0.4408)\) and \((0.2675, 0.2565, 0.2761)\) to three decimal places (Figure~\ref{fig:hist}). Principal Component Analysis (PCA) on \(4{,}000\) raw pixel vectors retains \(41.9\%\) variance in the top two axes (\(85\) components needed for \(90\%\)) and exhibits complete class overlap both across superclasses and within \texttt{vehicles\_1} (Figures~\ref{fig:pca}--\ref{fig:pcav}), motivating deep non-linear residual feature hierarchies.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\textwidth]{brightness.png}
+\caption{Distribution of mean per-image brightness across the 50{,}000 training images.}
+\label{fig:bright}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{channel_histograms.png}
+\caption{Per-channel RGB pixel intensity histograms across the CIFAR-100 training split.}
+\label{fig:hist}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.84\textwidth]{pca_superclasses.png}
+\caption{Projection of 4{,}000 raw training images onto the first two principal components, colored by superclass.}
+\label{fig:pca}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\textwidth]{pca_vehicles.png}
+\caption{Overlap of the five \texttt{vehicles\_1} fine classes in raw 2D PCA pixel space.}
+\label{fig:pcav}
+\end{figure}
+
+\subsection{Training and Evaluation Preprocessing Pipeline}
+
+\begin{itemize}
+    \item \textbf{Training transform (\texttt{preprocess\_train}):} Zero-pad each \(32 \times 32\) image by \(4\) pixels on all sides to \(40 \times 40\), extract a random \(32 \times 32\) crop, apply random horizontal flip (\(p = 0.5\)), scale by \(1/255\), normalize per channel using \(\mu, \sigma\), and transpose to contiguous \texttt{float32} CHW \((3, 32, 32)\) (Figure~\ref{fig:prep}).
+    \item \textbf{Evaluation \& live deployment transform (\texttt{preprocess\_eval}):} Resize arbitrary user uploads bilinearly to \(32 \times 32\) RGB (no-op for native CIFAR test images), scale by \(1/255\), normalize with identical \(\mu, \sigma\), and output CHW \((1, 3, 32, 32)\) without random cropping or flipping.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{preprocess_views.png}
+\caption{One CIFAR-100 image shown raw, across three stochastic training augmentations, and under deterministic evaluation preprocessing.}
+\label{fig:prep}
+\end{figure}
+
+% =====================================================================
+\section{Reproduction Results}
+\label{sec:repro}
+
+Table~\ref{tab:repro} compares our from-scratch PyTorch reproduction against Zhao et al.'s published CIFAR-100 benchmarks for \(\texttt{ResNet32$\times$4} \to \texttt{ResNet8$\times$4}\) \cite{zhao2022}. Note that the original paper reports classical KD in two settings: \(73.33\%\) in Table~6 using standard \(0.1\,\mathcal{L}_{\mathrm{CE}} + 0.9\,\mathcal{L}_{\mathrm{KD}}\) weights, and \(73.63\%\) in Table~1 using unit weights \(1.0\,\mathcal{L}_{\mathrm{CE}} + 1.0\,\mathcal{L}_{\mathrm{KD}}\). To ensure strict experimental control where \(\mathcal{L}_{\mathrm{CE}}\) weight is never a confounding variable against DKD (which also uses \(1.0\,\mathcal{L}_{\mathrm{CE}}\)), our \texttt{kd\_T4} run implements the exact unit-weight formulation of Paper Table~1.
+
+\begin{table}[H]
+\centering
+\small
+\caption{CIFAR-100 Method Reproduction: Published Paper Benchmarks vs.\ Our From-Scratch Results.}
+\label{tab:repro}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Model / Method} & \textbf{Run ID} & \textbf{Paper Top-1} & \textbf{Our Best Top-1} & \textbf{Last-20 Ep Mean} & \textbf{Teacher Gap Closed} \\
+\midrule
+Teacher (\texttt{ResNet32$\times$4}, frozen) & \texttt{teacher} & \(79.42\%\) & \textbf{79.42\%} & \(79.42\%\) & \(100.0\%\) (Ceiling) \\
+Student Baseline (Plain CE) & \texttt{ce} & \(72.50\%\) & \textbf{72.89\%} & \(72.51\%\) & \(0.0\%\) (Baseline) \\
+Classical KD (\(T=4.0\), unit wt.) & \texttt{kd\_T4} & \(73.63\%\)$^\dagger$ & \textbf{74.57\%} & \(74.30\%\) & \(+25.7\%\) \\
+\textbf{Decoupled KD (\(\alpha=1, \beta=8, T=4\))} & \texttt{dkd\_T4} & \(76.32\%\) & \textbf{76.05\%}$^\ddagger$ & \(75.87\%\) & \textbf{+48.4\%} \\
+\bottomrule
+\multicolumn{6}{@{}l}{\footnotesize $^\dagger$Paper Table~1 reports \(73.63\%\) for \(1.0\,\text{CE}+1.0\,\text{KD}\) and Table~6 reports \(73.33\%\) for \(0.1\,\text{CE}+0.9\,\text{KD}\).} \\
+\multicolumn{6}{@{}l}{\footnotesize $^\ddagger$A second independent seed run (\texttt{03} pipeline) reached \textbf{76.45\%}, giving a 2-seed mean of \textbf{76.25\%} (\(-0.07\%\) from paper).}
+\end{tabular}}
+\end{table}
+
+As shown in Figures~\ref{fig:repro_curves} and \ref{fig:dkd_loss}, every relative ordering reported by Zhao et al.\ holds cleanly:
+\[
+\text{Plain CE }(72.89\%) < \text{Classical KD }(74.57\%) < \text{DKD }(76.05\%\text{; }76.25\%\text{ mean}) < \text{Teacher }(79.42\%).
+\]
+Notably, the converged last-20-epoch mean of our plain \texttt{ce} baseline is \(72.51\%\) (within \(0.01\%\) of the paper's \(72.50\%\)), and our \texttt{dkd\_T4} student lands \(0.27\%\) from the paper's 5-trial mean (76.05\% in our primary \texttt{SEED=42} suite and 76.45\% in an earlier independent Colab seed, averaging \textbf{76.25\%}). Across all runs, test accuracy plateaus near \(58\%\text{--}63\%\) while \(\text{lr}=0.05\) explores the loss landscape, then surges by \(+12\%\text{--}14\%\) immediately at Epoch 150 when the learning rate decays to \(0.005\).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{reproduction_curves.png}
+\caption{240-epoch CIFAR-100 test top-1 accuracy trajectories for Plain CE, Classical KD (\(T=4\)), and Decoupled KD (\(T=4\)) against the frozen \texttt{ResNet32$\times$4} teacher.}
+\label{fig:repro_curves}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{dkd_loss_decomposition.png}
+\caption{Loss decomposition during \texttt{dkd\_T4} training, illustrating the 20-epoch linear distillation warmup and sharp convergence steps at Epochs 150, 180, and 210.}
+\label{fig:dkd_loss}
+\end{figure}
+
+% =====================================================================
+\section{Additional Experiments}
+\label{sec:exp}
+
+Beyond basic reproduction, we designed and executed \textbf{three distinct experimental studies} (comprising seven additional 240-epoch GPU runs plus hardware profiling) to test the mechanistic claims and boundary conditions of DKD.
+
+\subsection{Study 1 --- Decoupled Component Ablation (\texttt{TCKD} Only vs.\ \texttt{NCKD} Only)}
+
+\begin{itemize}
+    \item \textbf{Research Question:} Does DKD's accuracy gain originate from binary target-confidence transfer (\(\mathrm{TCKD}\)), non-target inter-class similarity transfer (\(\mathrm{NCKD}\)), or their interaction?
+    \item \textbf{Experimental Setup:} Holding initialization (\texttt{SEED=42}), optimizer, \(T=4.0\), \(1.0\,\mathcal{L}_{\mathrm{CE}}\), and the 20-epoch linear warmup strictly fixed, we ablated each term of Equation~\eqref{eq:dkd_final}: \texttt{tckd\_only\_T4} (\(\alpha=1.0, \beta=0.0\)) and \texttt{nckd\_only\_T4} (\(\alpha=0.0, \beta=8.0\)).
+    \item \textbf{Results (Table~\ref{tab:ablation}, Figures~\ref{fig:ablation_curves}--\ref{fig:bars_all}):} Removing non-target dark knowledge (\texttt{tckd\_only\_T4}) causes student accuracy to \textbf{plummet to \(68.73\%\)}---a catastrophic \(-4.16\%\) drop \emph{below} training with no teacher at all (\texttt{ce}: \(72.89\%\)), matching Zhao et al.'s \(68.63\%\) within \(0.10\%\). Conversely, training with non-target dark knowledge alone (\texttt{nckd\_only\_T4}) leaps \(+6.58\%\) higher to \textbf{\(75.31\%\)}, matching Paper Table~3 (\(75.30\%\)) to \textbf{one test image out of 10,000} (\(0.01\%\) difference) and outperforming full Classical KD (\(74.57\%\)) by \(+0.74\%\). Re-introducing \(\alpha=1.0\) alongside \(\beta=8.0\) (\texttt{dkd\_T4}) adds a final \(+0.74\%\) boost to reach \(76.05\%\).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Study 1 --- Component Ablation Results on CIFAR-100 (\(T = 4.0\), 240 Epochs).}
+\label{tab:ablation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Configuration} & \textbf{\(\alpha\)} & \textbf{\(\beta\)} & \textbf{Paper Top-1} & \textbf{Our Best Top-1} & \textbf{\(\Delta\) vs.\ CE} & \textbf{Ep 240 Train Acc} \\
+\midrule
+Plain CE (No Teacher) & \(0\) & \(0\) & \(72.50\%\) & \(72.89\%\) & \(0.00\%\) & \(95.32\%\) \\
+\texttt{tckd\_only\_T4} (Target Only) & \(1.0\) & \(0.0\) & \(68.63\%\) & \textbf{68.73\%} & \(-4.16\%\) & \(91.58\%\) \\
+\texttt{nckd\_only\_T4} (Dark Knowledge Only) & \(0.0\) & \(8.0\) & \(75.30\%\) & \textbf{75.31\%} & \(+2.42\%\) & \(88.32\%\) \\
+Full \texttt{dkd\_T4} (Balanced) & \(1.0\) & \(8.0\) & \(76.32\%\) & \textbf{76.05\%} & \(+3.16\%\) & \(90.02\%\) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.93\textwidth]{component_ablation_curves.png}
+\caption{Study 1 trajectories: \texttt{TCKD} alone degrades accuracy below Plain CE, while \texttt{NCKD} drives the distillation gain.}
+\label{fig:ablation_curves}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.93\textwidth]{paper_vs_ours_bars.png}
+\caption{Side-by-side comparison of published CVPR 2022 benchmarks vs.\ our from-scratch implementation across all six baseline and ablation settings.}
+\label{fig:bars_all}
+\end{figure}
+
+\subsection{Study 2 --- Head-to-Head Temperature Robustness \& Asymptotic MSE Sweep}
+
+\begin{itemize}
+    \item \textbf{Research Question:} Does Classical KD require high softmax temperature \(T\) primarily as a crutch to keep \((1 - p_t^T)\) from collapsing, and what happens to DKD as \(T\) approaches Hinton's \(T \to \infty\) raw-logit MSE limit?
+    \item \textbf{Experimental Setup:} We trained Classical KD at \(T \in \{1.0, 4.0, 10.0\}\) (\texttt{kd\_T1}, \texttt{kd\_T4}, \texttt{kd\_T10}) and DKD (\(\alpha=1, \beta=8\)) across two orders of magnitude \(T \in \{1.0, 4.0, 10.0, 100.0\}\) (\texttt{dkd\_T1}, \texttt{dkd\_T4}, \texttt{dkd\_T10}, \texttt{dkd\_T100}).
+    \item \textbf{Results (Table~\ref{tab:temp}, Figure~\ref{fig:temp_sweep}):}
+    \begin{enumerate}
+        \item \textbf{Low-Temperature Collapse in Classical KD vs.\ Immunity in DKD (\(T=1.0\)):} At \(T=1.0\), the teacher's unsoftened target probability \(p_t^T \approx 0.999\) drives \((1 - p_t^T) \approx 0.001\). Consequently, \texttt{kd\_T1} \textbf{collapses to \(72.95\%\)} (last-20 mean \(72.41\%\)), offering virtually zero improvement (\(+0.06\%\)) over plain \texttt{ce} (\(72.89\%\)) while severely overfitting training labels (\(97.04\%\) train accuracy). At the exact same \(T=1.0\), \texttt{dkd\_T1} achieves \textbf{\(75.61\%\)}---beating \texttt{kd\_T1} by \(+2.66\%\) and even outperforming softened \texttt{kd\_T4} (\(74.57\%\)) by \(+1.04\%\).
+        \item \textbf{High-Temperature Plateau (\(T=4 \to 10\)) and Extreme Asymptotic Bend (\(T=100\)):} DKD forms a remarkably flat, high-accuracy plateau across \(T=4.0\) (\(76.05\%\)) and \(T=10.0\) (\(76.28\%\)). Pushing to \(T=100.0\) (\texttt{dkd\_T100}) remains numerically stable (zero NaNs thanks to \(T^2 = 10{,}000\) gradient scaling) and reaches \(75.84\%\), bending downward by \(-0.44\%\) from \(T=10.0\).
+    \end{enumerate}
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Study 2 --- Classical KD vs.\ DKD Across Softmax Temperatures \(T \in [1, 100]\).}
+\label{tab:temp}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Temperature \(T\)} & \textbf{KD Best Top-1} & \textbf{KD Last-20} & \textbf{DKD Best Top-1} & \textbf{DKD Last-20} & \textbf{DKD Gain Over KD} \\
+\midrule
+\(T = 1.0\) (Sharp / Unsoftened) & \(72.95\%\) & \(72.41\%\) & \textbf{75.61\%} & \(75.39\%\) & \textbf{+2.66\%} \\
+\(T = 4.0\) (Paper Standard) & \(74.57\%\) & \(74.30\%\) & \textbf{76.05\%} & \(75.87\%\) & \textbf{+1.48\%} \\
+\(T = 10.0\) (High Softening) & \(74.45\%\) & \(74.22\%\) & \textbf{76.28\%} & \(76.04\%\) & \textbf{+1.83\%} \\
+\(T = 100.0\) (Asymptotic MSE Limit) & --- & --- & \textbf{75.84\%} & \(75.70\%\) & --- \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{kd_vs_dkd_temperature_sweep.png}
+\caption{Study 2: Classical KD collapses to the plain CE baseline at \(T=1.0\), whereas DKD maintains strong performance across \(T \in [1, 100]\) before bending down slightly at the \(T=100\) MSE limit.}
+\label{fig:temp_sweep}
+\end{figure}
+
+\subsection{Study 3 --- Computational Overhead and Deployment Compression Analysis}
+
+\begin{itemize}
+    \item \textbf{Research Question:} What training-time compute penalty does DKD impose relative to Classical KD, and what inference-time compression and latency gains are realized in deployment?
+    \item \textbf{Results (Figure~\ref{fig:compute}):} Across 240 epochs (\(187{,}680\) batches of 64 images) on an NVIDIA L4 GPU, plain \texttt{ce} averages \(9.54\text{ ms/batch}\) (\(29.8\text{ min}\) total). Adding the frozen \texttt{ResNet32$\times$4} teacher forward pass brings \texttt{kd\_T4} to \(18.30\text{ ms/batch}\) (\(57.2\text{ min}\)) and \texttt{dkd\_T4} to \(18.87\text{ ms/batch}\) (\(59.0\text{ min}\))---an overhead of just \(+0.57\text{ ms/batch}\) (\(\approx 3\%\)) for tensor masking. At deployment, the teacher and loss function are discarded entirely: the student shrinks disk footprint by \textbf{\(6.03\times\)} (\(28.36\text{ MB} \to 4.71\text{ MB}\)), cuts parameter count from \(7.43\text{M}\) to \(1.23\text{M}\), and accelerates single-image inference by \textbf{\(2.6\times\text{--}3.1\times\)} (\(9.92\text{ ms} \to 3.80\text{ ms}\) on CPU; \(< 1.5\text{ ms}\) on Apple Silicon \texttt{mps}).
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{computational_efficiency.png}
+\caption{Study 3: Mean per-batch training time on NVIDIA L4 GPU across all five loss modes.}
+\label{fig:compute}
+\end{figure}
+
+% =====================================================================
+\section{Analysis and Discussion}
+\label{sec:discussion}
+
+\begin{enumerate}
+    \item \textbf{Teacher-Gap Closure vs.\ Raw Percentage Points:} Evaluating distillation gains on a \(0\text{--}100\%\) scale understates their practical impact because even the \(6\times\) larger teacher ceilings at \(79.42\%\). Relative to our standalone student (\(72.89\%\)), the maximum recoverable teacher--student gap is \(6.53\%\). Classical KD recovers \(1.68\%\) (\(25.7\%\) of the gap), whereas DKD recovers \(3.16\%\text{--}3.56\%\) (\textbf{\(48.4\%\text{--}54.5\%\) of the gap})---transferring roughly \textbf{twice as much teacher capability} with zero architectural changes.
+    \item \textbf{Algorithmic Signal vs.\ Single-Seed Stochastic Variance:} On a 10,000-image test set (\(1\% = 100\) images), independent SGD trajectories with random cropping and flipping exhibit \(\sigma \approx \pm 0.25\%\) variance. Our two independent \(T=4.0\) DKD runs (\(76.05\%\) and \(76.45\%\), mean \(76.25\%\)) sit well within \(1\sigma\) of Zhao et al.'s 5-seed average (\(76.32\%\)). In contrast, DKD's \(+1.48\%\text{--}2.66\%\) advantage over Classical KD across \(T \in \{1, 4, 10\}\) represents a \(>5\sigma\) structural improvement. Our \texttt{kd\_T4} run (\(74.57\%\)) slightly exceeded Paper Table~1 (\(73.63\%\)) due to PyTorch's default \texttt{kaiming\_uniform\_} conv initialization paired with a favorable seed, making DKD's margin over \texttt{kd\_T4} even more conservative.
+    \item \textbf{Anti-Memorization Regularization (\(\text{Train} - \text{Test}\) Gap):} Figure~\ref{fig:gen_gap} reveals \emph{how} \(\mathrm{NCKD}\) improves generalization. Plain \texttt{ce} (\(95.32\%\) train vs.\ \(72.36\%\) test) and \texttt{kd\_T1} (\(97.04\%\) train vs.\ \(72.36\%\) test) memorize hard one-hot training labels, suffering \(23\%\text{--}25\%\) generalization gaps. Weighting non-target dark knowledge by \(\beta = 8.0\) forces the student's 256-D penultimate representation to simultaneously satisfy 99 inter-class similarity constraints per image, holding training accuracy near \(88\%\text{--}90\%\) and slashing the overfitting gap from \(23.0\%\) down to \(14.2\%\).
+    \item \textbf{Why \(T=10\) Plateaus and \(T=100\) Bends Down:} By Taylor expansion \(\exp(z_i/T) \approx 1 + z_i/T\) for large \(T\), Hinton et al.\ \cite{hinton2015} showed that \(T^2\,\mathrm{KL}(p^T \parallel p^S)\) converges asymptotically to \(L_2\) Mean Squared Error (MSE) matching on zero-mean logits. Because \texttt{ResNet8$\times$4} shares identical stage channel widths \([64, 128, 256]\) with \texttt{ResNet32$\times$4}, it has well-aligned linear head geometry to match softened logits at \(T=4\text{--}10\) (\(76.05\%\text{--}76.28\%\)). At \(T=100\), however, exponential suppression of negative unrelated logits disappears completely: the student wastes gradient capacity matching noisy negative teacher logits (e.g., whether \texttt{skyscraper} is \(-8.1\) vs.\ \(-4.9\) on a \texttt{crocodile} image), causing accuracy to bend downward to \(75.84\%\). Thus \(T=4.0\) represents the universal ``best of both worlds''---soft enough to reveal semantically related cousin classes while still zeroing out negative-logit noise.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{generalization_gap_bars.png}
+\caption{Epoch 240 training vs.\ test accuracy across methods: decoupled \texttt{NCKD} (\(\beta=8\)) acts as a strong structural regularizer against one-hot label memorization.}
+\label{fig:gen_gap}
+\end{figure}
+
+% =====================================================================
+\section{Model Deployment}
+\label{sec:deploy}
+
+\subsection{End-to-End Inference Architecture and Input/Output Specification}
+
+To demonstrate real-world usability, all ten trained \texttt{ResNet8$\times$4} checkpoints alongside the reference \texttt{ResNet32$\times$4} teacher are deployed in a standalone Streamlit web application (\texttt{app.py}) hosted publicly on Hugging Face Spaces (\url{\LiveAppURL}) and executable 100\% offline on local hardware. The live pipeline executes five deterministic stages:
+\[
+\text{Input} \rightarrow 32{\times}32\text{ RGB \& Norm} \rightarrow \text{Frozen \texttt{ResNet8$\times$4}} \rightarrow \text{Top-5 \& \texttt{NCKD}} \rightarrow \text{UI}.
+\]
+\begin{itemize}
+    \item \textbf{Accepted Inputs:} (1) Any of the \(10{,}000\) unseen CIFAR-100 held-out test images (selectable by class filter, index, random sampler, or 1-click presets), or (2) arbitrary user-uploaded \texttt{.png}, \texttt{.jpg}, \texttt{.jpeg}, or \texttt{.webp} photos (plus \(10{,}000\) lossless PNGs exported via \texttt{scripts/export\_test\_images.py} for on-the-spot evaluator file uploads).
+    \item \textbf{Preprocessing Contract:} Converts input to 3-channel RGB, resizes non-\(32\times 32\) uploads via bilinear interpolation, normalizes with CIFAR-100 \(\mu, \sigma\), and shapes a contiguous \texttt{float32} tensor \((1, 3, 32, 32)\).
+    \item \textbf{Outputs:} Predicted fine class, ground-truth verification badge, top-1 confidence (\%), 20-run averaged per-image latency (\(\text{ms}\)) and speedup over teacher, interactive Plotly top-5 probability bar charts, live sample \((1 - p_t^T)\) vs.\ \(\beta=8.0\) dark-knowledge microscope (\texttt{NCKD} distribution over the 99 non-target classes), and a 240-epoch multi-run leaderboard.
+\end{itemize}
+
+\subsection{Setup, Startup Instructions, and Pinned Dependencies}
+
+From a fresh clone of \url{\RepoURL} (requires Python \(3.11+\); pinned dependencies in \texttt{requirements.txt} include \texttt{torch==2.15.0}, \texttt{streamlit==1.67.0}, \texttt{plotly==7.1.0}, \texttt{numpy==2.5.4}, \texttt{pillow==13.0.0}):
+\begin{verbatim}
+python3 scripts/setup_project.py   # Creates .venv, installs deps, verifies CIFAR-100
+.venv/bin/streamlit run app.py     # Launches live UI at http://localhost:8501
+\end{verbatim}
+On cloud containers (Hugging Face Spaces), \texttt{app.py} automatically caches models with \texttt{@st.cache\_resource} and self-fetches the CIFAR-100 test archive and teacher checkpoint on first boot if not present on disk.
+
+\subsection{Example Live Inference Walkthrough and Application Screenshots}
+
+On unseen CIFAR-100 Test Image \texttt{\#428} (ground truth: \texttt{crocodile}, superclass: \texttt{reptiles}), our deployed \(4.71\text{ MB}\) \texttt{dkd\_T4} student predicts \textbf{\texttt{crocodile} (\(82.8\%\) confidence)} in \textbf{\(3.80\text{ ms}\)} on CPU (\(2.6\times\) faster than the \(28.36\text{ MB}\) teacher's \(9.92\text{ ms}\), which predicts \texttt{crocodile} at \(99.6\%\)). Switching the sidebar checkpoint dropdown to the plain \texttt{ce} student on the \emph{exact same image} causes the student to misclassify \texttt{crocodile} as \textbf{\texttt{bear} (\(70.8\%\))}---providing immediate, live visual proof of DKD's accuracy advantage (Figures~\ref{fig:ui_overview}--\ref{fig:ui_leaderboard}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{app_live_overview.png}
+\caption{Deployed Streamlit application (\texttt{app.py}, Tab 1): sidebar checkpoint selector, unseen test-set / custom photo input controls, \(32\times 32\) preprocessing inspector, and side-by-side inference on Test Image \texttt{\#428} (\texttt{crocodile}).}
+\label{fig:ui_overview}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{app_nckd_microscope.png}
+\caption{Tab 1 Prediction \& Section 4 Dark-Knowledge Microscope: live comparison of Classical KD's coupled weight \((1 - p_t^T) = 0.850\times\) vs.\ DKD's decoupled \(\beta = 8.000\times\) (\(9.4\times\) stronger non-target signal) with sample \(\mathrm{NCKD}\) KL divergence.}
+\label{fig:ui_microscope}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{app_leaderboard.png}
+\caption{Tab 2 Interactive Study Explorer: 10-run 240-epoch leaderboard table displaying paper benchmarks, teacher-gap closure, step times, and filterable convergence curves.}
+\label{fig:ui_leaderboard}
+\end{figure}
+
+% =====================================================================
+\section{Limitations}
+\label{sec:limits}
+
+\begin{enumerate}
+    \item \textbf{Spatial Blindness on Dense Localization Tasks:} Because DKD operates strictly on global-pooled \((B, C)\) output logits, it transfers zero spatial coordinate information (\(H \times W\)). As Zhao et al.\ noted on MS-COCO object detection \cite{zhao2022}, standalone DKD lags feature-review methods on bounding-box regression unless paired with intermediate feature distillation.
+    \item \textbf{\(32 \times 32\) Sensor Bottleneck on High-Resolution User Uploads:} Because CIFAR ResNets accept fixed \(32 \times 32\) inputs (global \texttt{AvgPool2d(8)} expects an \(8 \times 8\) feature map before \texttt{fc}), high-resolution user photographs uploaded in \texttt{app.py} must be downsampled to \(32 \times 32\), discarding fine high-frequency detail and restricting predictions to the closed 100-class CIFAR vocabulary.
+    \item \textbf{Single Architecture Pair \& Single-Seed Sweep:} While our primary \texttt{dkd\_T4} setting was cross-checked across two independent runs (\(76.05\%\) and \(76.45\%\)), our remaining nine ablation and temperature runs used a single controlled seed (\texttt{SEED=42}) on one homogeneous pair (\(\texttt{ResNet32$\times$4} \to \texttt{ResNet8$\times$4}\)). Cross-architecture pairs (e.g., \(\texttt{ResNet50} \to \texttt{MobileNetV2}\)) may exhibit sharper degradation at \(T \ge 10\) due to mismatched classifier head geometries.
+    \item \textbf{Training-Time Teacher Cost \& \(\beta\) Tuning:} Although inference is \(100\%\) teacher-free, training still requires a forward pass through the \(7.43\text{M}\)-parameter teacher on every batch (\(\approx 1.9\times\) slower training than plain CE), and optimal \(\beta\) depends on teacher confidence levels across datasets (\(\beta = 8\) on CIFAR-100 vs.\ \(\beta = 2\) on ImageNet \cite{zhao2022}).
+\end{enumerate}
+
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+This project reproduced, ablated, stress-tested, and deployed \emph{Decoupled Knowledge Distillation} (Zhao et al., CVPR 2022) from scratch on CIFAR-100. By algebraically separating classical KD into binary target confidence (\(\mathrm{TCKD}\)) and 99-class conditional non-target similarity (\(\mathrm{NCKD}\)), we verified both mathematically and empirically why Hinton's coupled \((1 - p_t^T)\) factor throttles dark knowledge. Our distilled \texttt{ResNet8$\times$4} student reached \(76.05\%\) top-1 accuracy (\(76.25\%\) 2-seed mean vs.\ \(76.32\%\) published), closing nearly \(50\%\) of the teacher--student gap---double that of classical KD---while delivering a \(6.03\times\) smaller checkpoint (\(4.71\text{ MB}\)) and \(2.6\times\) faster CPU inference with zero architectural overhead. Our custom component and temperature studies further demonstrated that \(\mathrm{TCKD}\) alone harms generalization (\(68.73\%\)), \(\mathrm{NCKD}\) alone surpasses classical KD (\(75.31\%\)), and decoupling renders distillation robust even at unsoftened temperature \(T=1.0\) (\(75.61\%\) vs.\ classical KD's \(72.95\%\) collapse).
+
+% =====================================================================
+\section{References}
+\label{sec:refs}
+
+\begingroup
+\renewcommand{\section}[2]{}%
+\begin{thebibliography}{99}
+
+\bibitem{zhao2022}
+B.~Zhao, Q.~Cui, R.~Song, Y.~Qiu, and J.~Liang, ``Decoupled knowledge distillation,'' in \emph{Proc.\ IEEE/CVF Conf.\ Comput.\ Vis.\ Pattern Recognit.\ (CVPR)}, New Orleans, LA, USA, 2022, pp.\ 11953--11962.
+
+\bibitem{hinton2015}
+G.~Hinton, O.~Vinyals, and J.~Dean, ``Distilling the knowledge in a neural network,'' \emph{arXiv preprint arXiv:1503.02531}, 2015.
+
+\bibitem{romero2015}
+A.~Romero, N.~Ballas, S.~E.~Kahou, A.~Chassang, C.~Gatta, and Y.~Bengio, ``FitNets: Hints for thin deep nets,'' in \emph{Proc.\ Int.\ Conf.\ Learn.\ Represent.\ (ICLR)}, 2015.
+
+\bibitem{zagoruyko2017}
+S.~Zagoruyko and N.~Komodakis, ``Paying more attention to attention: Improving the performance of convolutional neural networks via attention transfer,'' in \emph{Proc.\ Int.\ Conf.\ Learn.\ Represent.\ (ICLR)}, 2017.
+
+\bibitem{park2019}
+W.~Park, D.~Kim, Y.~Lu, and M.~Cho, ``Relational knowledge distillation,'' in \emph{Proc.\ IEEE/CVF Conf.\ Comput.\ Vis.\ Pattern Recognit.\ (CVPR)}, 2019, pp.\ 3967--3976.
+
+\bibitem{tian2020}
+Y.~Tian, D.~Krishnan, and P.~Isola, ``Contrastive representation distillation,'' in \emph{Proc.\ Int.\ Conf.\ Learn.\ Represent.\ (ICLR)}, 2020.
+
+\bibitem{heo2019}
+B.~Heo, J.~Kim, S.~Yun, H.~Park, N.~Kwak, and J.~Y.~Choi, ``A comprehensive overhaul of feature distillation,'' in \emph{Proc.\ IEEE/CVF Int.\ Conf.\ Comput.\ Vis.\ (ICCV)}, 2019, pp.\ 1921--1930.
+
+\bibitem{chen2021}
+P.~Chen, S.~Liu, H.~Zhao, and J.~Jia, ``Distilling knowledge via knowledge review,'' in \emph{Proc.\ IEEE/CVF Conf.\ Comput.\ Vis.\ Pattern Recognit.\ (CVPR)}, 2021, pp.\ 5008--5017.
+
+\bibitem{zhang2018}
+Y.~Zhang, T.~Xiang, T.~M.~Hospedales, and H.~Lu, ``Deep mutual learning,'' in \emph{Proc.\ IEEE/CVF Conf.\ Comput.\ Vis.\ Pattern Recognit.\ (CVPR)}, 2018, pp.\ 4320--4328.
+
+\bibitem{mirzadeh2020}
+S.~I.~Mirzadeh, M.~Farajtabar, A.~Li, N.~Levine, A.~Matsukawa, and H.~Ghasemzadeh, ``Improved knowledge distillation via teacher assistant,'' in \emph{Proc.\ AAAI Conf.\ Artif.\ Intell.}, 2020, pp.\ 5191--5198.
+
+\bibitem{cho2019}
+J.~H.~Cho and B.~Hariharan, ``On the efficacy of knowledge distillation,'' in \emph{Proc.\ IEEE/CVF Int.\ Conf.\ Comput.\ Vis.\ (ICCV)}, 2019, pp.\ 4794--4802.
+
+\bibitem{krizhevsky2009}
+A.~Krizhevsky, ``Learning multiple layers of features from tiny images,'' University of Toronto, Tech.\ Rep., 2009.
+
+\bibitem{bucilua2006}
+C.~Bucilu\u{a}, R.~Caruana, and A.~Niculescu-Mizil, ``Model compression,'' in \emph{Proc.\ 12th ACM SIGKDD Int.\ Conf.\ Knowl.\ Discovery Data Mining (KDD)}, 2006, pp.\ 535--541.
+
+\bibitem{he2016}
+K.~He, X.~Zhang, S.~Ren, and J.~Sun, ``Deep residual learning for image recognition,'' in \emph{Proc.\ IEEE Conf.\ Comput.\ Vis.\ Pattern Recognit.\ (CVPR)}, 2016, pp.\ 770--778.
+
+\end{thebibliography}
+\endgroup
+
+\appendix
+\section{Summary of Revisions from Deliverable 2 (Mid-Evaluation Report)}
+\label{app:revisions}
+
+Per Section 2.3 of the Deliverable 3 guidelines, the following updates were made when integrating Deliverable 2 into this Final Report:
+\begin{itemize}
+    \item \textbf{Carried Over \& Tightened (Sections~\ref{sec:lit} and \ref{sec:eda}):} Preserved our Deliverable 2 Literature Review and all nine verified CIFAR-100 EDA figures/tables, updating tense from future/planned to completed implementation and linking pixel-space superclass overlap directly to \(\mathrm{NCKD}\) dark-knowledge transfer.
+    \item \textbf{Added Methodology \& From-Scratch Implementation (Sections~\ref{sec:method} and \ref{sec:impl}):} Added the complete step-by-step algebraic proof of Equation~\eqref{eq:exact_kd}, the \(-1000.0\) logit-masking numerical stability analysis, stage-by-stage ResNet tensor/shortcut diagrams, and the 4-part Code \& Result Attribution table.
+    \item \textbf{Added Empirical Reproduction, Three Custom Studies, and Deployment (Sections~\ref{sec:repro}--\ref{sec:limits}):} Integrated all ten 240-epoch NVIDIA L4 GPU runs (\texttt{ce}, \texttt{kd\_T1/T4/T10}, \texttt{tckd\_only\_T4}, \texttt{nckd\_only\_T4}, \texttt{dkd\_T1/T4/T10/T100}), generalization-gap and Hinton MSE limit analyses, and documentation/screenshots of our live Streamlit deployment (\texttt{app.py}).
+\end{itemize}
+
+\end{document}

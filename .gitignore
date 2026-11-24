@@ -5,5 +5,7 @@ __pycache__/
 data/
 demo_test_images/
 outputs_scratch/
+outputs_03_prev/
+hf_space_bundle/
 .DS_Store
 .pytest_cache/

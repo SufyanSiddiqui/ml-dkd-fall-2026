@@ -318,22 +318,23 @@ def load_student_model(ckpt_path_str: str) -> tuple[CifarResNet, dict]:
 
 @torch.no_grad()
 def run_inference(model: nn.Module, x_tensor: torch.Tensor) -> tuple[torch.Tensor, float]:
-    """Warm up 1 pass, then average 5 forward passes for stable millisecond latency."""
+    """Warm up 3 passes, then average 20 forward passes for stable millisecond latency."""
     x_dev = x_tensor.to(DEVICE)
-    _ = model(x_dev)
+    for _ in range(3):
+        _ = model(x_dev)
     if DEVICE.type == "cuda":
         torch.cuda.synchronize()
     elif DEVICE.type == "mps":
         torch.mps.synchronize()
 
     t0 = time.perf_counter()
-    for _ in range(5):
+    for _ in range(20):
         logits = model(x_dev)
     if DEVICE.type == "cuda":
         torch.cuda.synchronize()
     elif DEVICE.type == "mps":
         torch.mps.synchronize()
-    ms = ((time.perf_counter() - t0) / 5.0) * 1000.0
+    ms = ((time.perf_counter() - t0) / 20.0) * 1000.0
     return logits[0].cpu(), ms
 
 
@@ -454,20 +455,20 @@ with tab_infer:
             if "picked_class" not in st.session_state:
                 st.session_state.picked_class = "crocodile"
             if "sample_pos" not in st.session_state:
-                st.session_state.sample_pos = 0
+                st.session_state.sample_pos = 8
 
-            # Curated 1-click showcase presets
-            st.caption("Quick Demo Presets (1-click):")
+            # Curated 1-click showcase presets (unseen test images where DKD succeeds & plain CE fails!)
+            st.caption("Quick Demo Presets (1-click unseen test images):")
             q1, q2, q3, q4 = st.columns(4)
             if q1.button("🐊 Crocodile", use_container_width=True):
                 st.session_state.picked_class = "crocodile"
-                st.session_state.sample_pos = 0
+                st.session_state.sample_pos = 8
             if q2.button("🚌 Bus", use_container_width=True):
                 st.session_state.picked_class = "bus"
-                st.session_state.sample_pos = 1
+                st.session_state.sample_pos = 2
             if q3.button("🐬 Dolphin", use_container_width=True):
                 st.session_state.picked_class = "dolphin"
-                st.session_state.sample_pos = 0
+                st.session_state.sample_pos = 17
             if q4.button("🎲 Surprise Me", use_container_width=True):
                 st.session_state.picked_class = "(Any class)"
                 st.session_state.sample_pos = int(np.random.randint(0, 10000))

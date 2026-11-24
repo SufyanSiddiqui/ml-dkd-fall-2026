@@ -12,7 +12,7 @@ Run these **during the preceding group's Viva window** (5 minutes before your tu
    .venv/bin/streamlit run app.py
    ```
    Verify `http://localhost:8501` is open in Tab 1 of your browser and `DKD (α=1, β=8, T=4.0) [76.05%]` is loaded in memory.
-3. **Public Hugging Face Space Open in Browser Tab 2:** `https://huggingface.co/spaces/SufyanSiddiqui/dkd-cifar100`
+3. **Public Streamlit Cloud App Open in Browser Tab 2:** `https://ml-dkd-fall-2026-36389and36374.streamlit.app`
 4. **Finder Window Ready:** Open `/Users/sufyan.siddiqui/ML-Project/demo_test_images/00_quick_demo_picks/` (and `/by_class/`) so when Dr. Rizwan says *"Upload a fresh image on the spot!"*, you can drag-and-drop any unseen PNG in **2 seconds**.
 5. **Emergency 90-Second Screen Recording (`Cmd + Shift + 5` on macOS):** Record a quick 90-second MP4 of `app.py` before Nov 25 @ 23:55 and keep it on Desktop **strictly as a last-resort hardware-crash fallback**.
 

@@ -18,7 +18,7 @@
 % --- Project Artifact URLs (Displayed on Page 1 per Section 2.2 Guidelines) ---
 \newcommand{\RepoURL}{https://github.com/SufyanSiddiqui/ml-dkd-fall-2026}
 \newcommand{\WeightsURL}{https://github.com/SufyanSiddiqui/ml-dkd-fall-2026/tree/main/outputs_final}
-\newcommand{\LiveAppURL}{https://huggingface.co/spaces/SufyanSiddiqui/dkd-cifar100}
+\newcommand{\LiveAppURL}{https://ml-dkd-fall-2026-36389and36374.streamlit.app}
 
 \title{\textbf{Final Research Report}\\[0.35em]
 \large Decoupled Knowledge Distillation on CIFAR-100:\\
@@ -497,7 +497,7 @@ Full \texttt{dkd\_T4} (Balanced) & \(1.0\) & \(8.0\) & \(76.32\%\) & \textbf{76.
 
 \subsection{End-to-End Inference Architecture and Input/Output Specification}
 
-To demonstrate real-world usability, all ten trained \texttt{ResNet8$\times$4} checkpoints alongside the reference \texttt{ResNet32$\times$4} teacher are deployed in a standalone Streamlit web application (\texttt{app.py}) hosted publicly on Hugging Face Spaces (\url{\LiveAppURL}) and executable 100\% offline on local hardware. The live pipeline executes five deterministic stages:
+To demonstrate real-world usability, all ten trained \texttt{ResNet8$\times$4} checkpoints alongside the reference \texttt{ResNet32$\times$4} teacher are deployed in a standalone Streamlit web application (\texttt{app.py}) hosted publicly on Streamlit Community Cloud (\url{\LiveAppURL}) and executable 100\% offline on local hardware. The live pipeline executes five deterministic stages:
 \[
 \text{Input} \rightarrow 32{\times}32\text{ RGB \& Norm} \rightarrow \text{Frozen \texttt{ResNet8$\times$4}} \rightarrow \text{Top-5 \& \texttt{NCKD}} \rightarrow \text{UI}.
 \]
@@ -514,7 +514,7 @@ From a fresh clone of \url{\RepoURL} (requires Python \(3.11+\); pinned dependen
 python3 scripts/setup_project.py   # Creates .venv, installs deps, verifies CIFAR-100
 .venv/bin/streamlit run app.py     # Launches live UI at http://localhost:8501
 \end{verbatim}
-On cloud containers (Hugging Face Spaces), \texttt{app.py} automatically caches models with \texttt{@st.cache\_resource} and self-fetches the CIFAR-100 test archive and teacher checkpoint on first boot if not present on disk.
+On cloud containers (Streamlit Community Cloud), \texttt{app.py} automatically caches models with \texttt{@st.cache\_resource} and self-fetches the CIFAR-100 test archive and teacher checkpoint on first boot if not present on disk.
 
 \subsection{Example Live Inference Walkthrough and Application Screenshots}
 

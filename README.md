@@ -13,7 +13,7 @@
 | :--- | :--- |
 | **Source Code Repository** | `https://github.com/SufyanSiddiqui/ml-dkd-fall-2026` |
 | **10 Trained Checkpoints (`240` Epochs)** | [`outputs_final/`](outputs_final/) (`ckpt_best.pth` + `history.json` for every run) |
-| **Live Deployed Web App (HF Spaces)** | `https://huggingface.co/spaces/SufyanSiddiqui/dkd-cifar100` |
+| **Live Deployed Web App (Streamlit Cloud)** | `https://ml-dkd-fall-2026-36389and36374.streamlit.app` |
 | **Final Research Report (`.pdf` + `.tex`)** | [`docs/final_report/Final_Research_Report.pdf`](docs/final_report/Final_Research_Report.pdf) & [`docs/final_report/final_report.tex`](docs/final_report/final_report.tex) |
 | **Deliverable 2 Mid-Eval Report (`.tex`)** | [`docs/mid_eval/mid_evaluation_report.tex`](docs/mid_eval/mid_evaluation_report.tex) |
 | **Self-Contained From-Scratch Notebook** | [`notebooks/05_dkd_from_scratch.ipynb`](notebooks/05_dkd_from_scratch.ipynb) |

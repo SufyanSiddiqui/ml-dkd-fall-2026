@@ -2,10 +2,28 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-data/
-demo_test_images/
-outputs_scratch/
-outputs_03_prev/
-hf_space_bundle/
 .DS_Store
 .pytest_cache/
+
+# Local datasets & generated export bundles
+data/
+demo_test_images/
+hf_space_bundle/
+dkd_colab_bundle.zip
+mid-submission/
+mid-submission-36389-36374.zip
+
+# Scratch / legacy training directories (final 240-epoch checkpoints live in outputs_final/)
+outputs/
+outputs_scratch/
+outputs_03_prev/
+
+# Personal study notes, viva prep, & slide generator scripts (kept locally on disk)
+PROGRESS.md
+NOTEBOOK_GUIDE.md
+docs/final_report/Viva_and_Demo_Runbook.md
+docs/final_report/DKD_Step_by_Step_Derivation.html
+docs/final_report/slide_assets/
+notebooks/04_understand_the_experiment.ipynb
+scripts/build_presentation.py
+scripts/prepare_hf_space.py

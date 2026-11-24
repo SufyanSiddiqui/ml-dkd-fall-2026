@@ -3,7 +3,7 @@
 Run from the repository root:
     .venv/bin/streamlit run app.py
 
-Pipeline demonstrated (Rubric Section 8 — 37.5%):
+Pipeline demonstrated:
     Input Image (CIFAR-100 Test Split or Custom Upload)
       -> 32x32 RGB Resize & CIFAR-100 Channel Normalization
       -> Trained Student (ResNet8x4, 4.7 MB) + Reference Teacher (ResNet32x4, 28.4 MB)

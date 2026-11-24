@@ -84,15 +84,9 @@ Open [`notebooks/05_dkd_from_scratch.ipynb`](notebooks/05_dkd_from_scratch.ipynb
 
 ---
 
-## Deploying to Hugging Face Spaces (1-Command Bundle)
+## Cloud Deployment (Streamlit Community Cloud)
 
-To stage a clean, lightweight Hugging Face Space directory (`hf_space_bundle/` with optimizer states stripped so all 10 checkpoints total only `~47 MB`):
-
-```bash
-.venv/bin/python scripts/prepare_hf_space.py
-```
-
-Then push `hf_space_bundle/` to a free Streamlit Space on Hugging Face (`git init && git add . && git commit -m "Deploy frozen DKD CIFAR-100 app" && git push`). On first cloud startup, `app.py` automatically downloads CIFAR-100 and the pretrained Teacher checkpoint.
+The live public application (`https://ml-dkd-fall-2026-36389and36374.streamlit.app`) deploys directly from `app.py` at the root of this repository using Python 3.13 and `requirements.txt`. On first cloud startup, `app.py` automatically downloads and caches the official CIFAR-100 test split and frozen Teacher checkpoint.
 
 ---
 
@@ -118,7 +112,7 @@ notebooks/
   01_cifar100_pipeline.ipynb   Preprocessing & augmentation verification
   05_dkd_from_scratch.ipynb    Complete linear from-scratch DKD implementation & 10-run suite
 outputs_final/                 All 10 trained 240-epoch Student checkpoints & history.json logs
-scripts/                       Setup, CLI train/eval, test PNG exporter, & HF Space packager
+scripts/                       Setup, CLI train/eval, EDA figure, and test PNG exporter scripts
 src/                           Modular data, ResNet, DKD loss, and trainer package
 tests/                         Pytest suite verifying algebraic KD decomposition & tensor shapes
 requirements.txt               Pinned Python environment dependencies

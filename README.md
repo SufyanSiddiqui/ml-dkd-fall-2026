@@ -12,7 +12,7 @@
 | Artifact | Location / Public Link |
 | :--- | :--- |
 | **Source Code Repository** | `https://github.com/SufyanSiddiqui/ml-dkd-fall-2026` |
-| **10 Trained Checkpoints (`240` Epochs)** | [`outputs_final/`](outputs_final/) (`ckpt_best.pth` + `history.json` for every run) |
+| **11 Trained Checkpoints (`240` Epochs)** | [`outputs_final/`](outputs_final/) (`ckpt_best.pth` + `history.json` for every run, including 2 independent `dkd_T4` seeds) |
 | **Live Deployed Web App (Streamlit Cloud)** | `https://ml-dkd-fall-2026-36389and36374.streamlit.app` |
 | **Final Research Report (`.pdf` + `.tex`)** | [`docs/final_report/Final_Research_Report.pdf`](docs/final_report/Final_Research_Report.pdf) & [`docs/final_report/final_report.tex`](docs/final_report/final_report.tex) |
 | **Deliverable 2 Mid-Eval Report (`.tex`)** | [`docs/mid_eval/mid_evaluation_report.tex`](docs/mid_eval/mid_evaluation_report.tex) |
@@ -29,7 +29,8 @@ All 10 student models (`1,233,540` params, **`4.71 MB`**, **`6.03×` smaller** t
 | **Reference** | `teacher` | Frozen Pretrained `ResNet32×4` | `79.42%` | **`79.42%`** | `79.42%` | `100.0%` |
 | **1. Reproduction** | `ce` | Hard-Label Cross-Entropy Only | `72.50%` | **`72.89%`** | `72.51%` | `0.0%` |
 | **1. Reproduction** | `kd_T4` | Classical KD (`1.0·CE + 1.0·KD`, $T=4$) | `73.63%` | **`74.57%`** | `74.30%` | `+25.7%` |
-| **1. Reproduction** | **`dkd_T4`** | **Decoupled KD ($\alpha=1, \beta=8, T=4$)** | **`76.32%`** | **`76.05%`** *(76.25% 2-seed)* | **`75.87%`** | **`+48.4%`** |
+| **1. Reproduction** | **`dkd_T4`** | **Decoupled KD ($\alpha=1, \beta=8, T=4$, Seed 1)** | **`76.32%`** | **`76.05%`** | **`75.87%`** | **`+48.4%`** |
+| **1. Reproduction** | **`dkd_T4_seed2`** | **Decoupled KD ($\alpha=1, \beta=8, T=4$, Seed 2)** | **`76.32%`** | **`76.45%`** *(76.25% 2-seed mean)* | **`76.19%`** | **`+54.5%`** |
 | **2A. Ablation** | `tckd_only_T4` | Target Confidence Only ($\alpha=1, \beta=0$) | `68.63%` | **`68.73%`** | `68.16%` | `-63.7%` *(hurts!)* |
 | **2A. Ablation** | `nckd_only_T4` | Non-Target Dark Knowledge ($\alpha=0, \beta=8$) | `75.30%` | **`75.31%`** | `75.12%` | `+37.1%` |
 | **2B. Temp Sweep** | `kd_T1` | Classical KD ($T=1.0$ — Sharp) | — | **`72.95%`** | `72.41%` | `+0.9%` *(collapses!)* |

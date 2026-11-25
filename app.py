@@ -41,10 +41,16 @@ CIFAR100_STD = np.array([0.2675, 0.2565, 0.2761], dtype=np.float32)
 # Clean human-readable metadata + paper benchmarks for every experiment
 RUN_CATALOG: dict[str, dict] = {
     "dkd_T4": {
-        "label": "DKD (α=1, β=8, T=4.0) — Main Reproduction",
+        "label": "DKD (α=1, β=8, T=4.0) — Seed 1 Main Suite",
         "study": "1. Paper Reproduction",
         "paper_acc": 76.32,
         "color": "#c45911",
+    },
+    "dkd_T4_seed2": {
+        "label": "DKD (α=1, β=8, T=4.0) — Seed 2 Verification",
+        "study": "1. Paper Reproduction",
+        "paper_acc": 76.32,
+        "color": "#f4a261",
     },
     "kd_T4": {
         "label": "Classical KD (1.0·CE + 1.0·KD, T=4.0)",
